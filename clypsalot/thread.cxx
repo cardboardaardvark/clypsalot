@@ -13,12 +13,17 @@
 #include <cassert>
 
 #include <clypsalot/error.hxx>
+#include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/thread.hxx>
+#include <clypsalot/util.hxx>
 
 /// @file
 namespace Clypsalot
 {
+    static ThreadQueue* threadQueueSingleton = nullptr;
+    static Mutex threadQueueSingletonMutex;
+
     bool DebugMutex::_locked() const
     {
         return std::thread::id() != lockedBy;
@@ -351,5 +356,183 @@ namespace Clypsalot
     void SharedDebugMutex::unlock_shared()
     {
         unlockShared();
+    }
+
+    ThreadQueue::ThreadQueue(size_t initThreads)
+    {
+        if (initThreads == 0)
+        {
+            initThreads = std::thread::hardware_concurrency();
+        }
+
+        if (initThreads == 0)
+        {
+            LOGGER(warn, "Could not detect hardware concurrency; setting number of threads to 1");
+            initThreads = 1;
+        }
+
+        threads(initThreads);
+    }
+
+    ThreadQueue::~ThreadQueue()
+    {
+        threads(0);
+    }
+
+    void ThreadQueue::worker()
+    {
+        std::unique_lock lock(mutex);
+
+        LOGGER(debug, "A new worker thread is born");
+
+        while(true)
+        {
+            LOGGER(trace, "Worker thread is starting a loop iteration");
+            condVar.wait(lock, [&]
+            {
+                if (jobs.size() > 0)
+                {
+                    LOGGER(trace, "Worker thread has a job to do; jobs=", jobs.size());
+                    return true;
+                }
+
+                if (workers.size() - joinQueue.size() > numThreads)
+                {
+                    LOGGER(trace, "Worker thread needs to die");
+                    return true;
+                }
+
+                LOGGER(trace, "Worker thread has nothing to do");
+                return false;
+            });
+
+            if (workers.size() - joinQueue.size() > numThreads)
+            {
+                LOGGER(debug, "Thread is quiting to reduce the number of workers");
+                joinQueue.push_back(std::this_thread::get_id());
+                condVar.notify_all();
+                return;
+            }
+
+            if (jobs.size() > 0)
+            {
+                LOGGER(trace, "Taking job from thread queue; jobs=", jobs.size());
+                auto job = jobs.front();
+
+                jobs.pop_front();
+
+                lock.unlock();
+                LOGGER(trace, "Executing job from queue");
+                job();
+                lock.lock();
+            }
+
+            LOGGER(trace, "Worker thread is finishing loop iteration");
+        }
+    }
+
+    size_t ThreadQueue::threads()
+    {
+        std::unique_lock lock(mutex);
+
+        return numThreads;
+    }
+
+    void ThreadQueue::threads(const size_t threads)
+    {
+        std::unique_lock lock(mutex);
+
+        numThreads = threads;
+        adjustThreads();
+    }
+
+    void ThreadQueue::adjustThreads()
+    {
+        assert(mutex.haveLock());
+
+        LOGGER(debug, "Adjusting number of threads in thread queue to ", numThreads);
+
+        if (workers.size() == numThreads)
+        {
+            LOGGER(trace, "The number of workers is the same as numThreads");
+        }
+        else if (workers.size() > numThreads)
+        {
+            condVar.notify_all();
+
+            condVar.wait(mutex, [&] { return workers.size() - joinQueue.size() == numThreads; });
+            assert(workers.size() - joinQueue.size() == numThreads);
+
+            for (const auto id : joinQueue)
+            {
+                for (auto thread = workers.begin(); thread != workers.end();)
+                {
+                    if (thread->get_id() == id)
+                    {
+                        LOGGER(debug, "Joining thread ", thread->get_id());
+                        assert(thread->joinable());
+                        thread->join();
+                        thread = workers.erase(thread);
+                    }
+                    else
+                    {
+                        LOGGER(trace, "No need to join thread ", thread->get_id());
+                        thread++;
+                    }
+                }
+            }
+        }
+        else
+        {
+            auto numStart = numThreads - workers.size();
+
+            LOGGER(trace, "Need to start ", numStart, " threads");
+
+            for (size_t i = 0; i < numStart; i++)
+            {
+                workers.emplace_back(std::bind(&ThreadQueue::worker, this));
+            }
+        }
+    }
+
+    void ThreadQueue::post(const JobType& job)
+    {
+        std::unique_lock lock(mutex);
+
+        jobs.push_back(job);
+        // TODO Until more condition variables are added to handle the case of removing threads
+        // all waiting threads need to be notified because more threads could be waiting
+        // on the condition variable than just threads waiting for a job.
+        condVar.notify_all();
+        LOGGER(trace, "Added job to thread queue; jobs=", jobs.size());
+    }
+
+    void initThreadQueue(const size_t numThreads)
+    {
+        std::unique_lock lock(threadQueueSingletonMutex);
+        assert(threadQueueSingleton == nullptr);
+        threadQueueSingleton = new ThreadQueue(numThreads);
+    }
+
+    void shutdownThreadQueue()
+    {
+        std::unique_lock lock(threadQueueSingletonMutex);
+        assert(threadQueueSingleton != nullptr);
+        delete threadQueueSingleton;
+        threadQueueSingleton = nullptr;
+    }
+
+    ThreadQueue& threadQueue()
+    {
+        std::unique_lock lock(threadQueueSingletonMutex);
+        assert(threadQueueSingleton != nullptr);
+        return *threadQueueSingleton;
+    }
+
+    void threadQueuePost(const ThreadQueue::JobType& job)
+    {
+        std::unique_lock lock(threadQueueSingletonMutex);
+        assert(threadQueueSingleton != nullptr);
+        threadQueueSingleton->post(job);
     }
 }

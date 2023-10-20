@@ -1,39 +1,28 @@
-#include <clypsalot/event.hxx>
+#include <thread>
+
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
 using namespace Clypsalot;
-
-struct SomeEvent : public Event
-{ };
-
-struct OtherEvent : public Event
-{ };
+using namespace std::chrono_literals;
 
 int main()
 {
-    logEngine().makeDestination<Clypsalot::ConsoleDestination>(Clypsalot::LogSeverity::trace);
+    logEngine().makeDestination<Clypsalot::ConsoleDestination>(Clypsalot::LogSeverity::info);
 
-    auto sender = std::make_shared<EventSender>();
+    initThreadQueue(0);
 
-    sender->registerEvent<SomeEvent>();
-    sender->registerEvent<OtherEvent>();
+    LOGGER(info, "This is the main thread");
 
-    auto someSubscription = sender->subscribe<SomeEvent>([](const Event&)
+    for (size_t i = 0; i < 3; i++)
     {
-        LOGGER(info, "Got SomeEvent");
-    });
+        std::this_thread::sleep_for(1s);
 
-    auto otherSubscription = sender->subscribe<OtherEvent>([](const OtherEvent&)
-    {
-        LOGGER(info, "Got OtherEvent");
-    });
+        auto value = THREAD_CALL([] { return 1; });
+        LOGGER(info, "Value: ", value);
+    }
 
-    sender->send(SomeEvent());
-    sender->send(OtherEvent());
-
-    otherSubscription = nullptr;
-    sender->send(SomeEvent());
-    sender->send(OtherEvent());
+    shutdownThreadQueue();
 }

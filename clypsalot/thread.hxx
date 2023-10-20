@@ -12,10 +12,15 @@
 
 #pragma once
 
+#include <condition_variable>
+#include <functional>
+#include <future>
+#include <list>
 #include <shared_mutex>
 #include <thread>
 #include <map>
 #include <mutex>
+#include <vector>
 
 /// @file
 namespace Clypsalot
@@ -149,4 +154,81 @@ namespace Clypsalot
         bool unlock_shared();
         /// @endcond
     };
+
+    class ThreadQueue : Lockable
+    {
+        public:
+        using JobType = std::function<void ()>;
+
+        private:
+        size_t numThreads = 0;
+        std::condition_variable_any condVar;
+        std::vector<std::thread> workers;
+        std::vector<std::thread::id> joinQueue;
+        std::list<JobType> jobs;
+
+        void adjustThreads();
+        void worker();
+
+        public:
+        ThreadQueue(const size_t threads);
+        ThreadQueue(const ThreadQueue&) = delete;
+        ~ThreadQueue();
+        void operator=(const ThreadQueue&) = delete;
+        size_t threads();
+        void threads(const size_t threads);
+        void post(const JobType& job);
+
+        template <typename T>
+        T call(const std::function<T ()>& procedure)
+        {
+            std::promise<T> promise;
+
+            post([&promise, &procedure]
+            {
+                try
+                {
+                    promise.set_value(procedure());
+                }
+                catch (...)
+                {
+                    promise.set_exception(std::current_exception());
+                }
+            });
+
+            return promise.get_future().get();
+        }
+
+        template <>
+        void call(const std::function<void ()>& procedure)
+        {
+            std::promise<void> promise;
+
+            post([&promise, &procedure]
+            {
+                try {
+                    procedure();
+                    promise.set_value();
+                }
+                catch(...)
+                {
+                    promise.set_exception(std::current_exception());
+                }
+            });
+
+            promise.get_future().get();
+            return;
+        }
+    };
+
+    void initThreadQueue(const size_t numThreads);
+    void shutdownThreadQueue();
+    ThreadQueue& threadQueue();
+    void threadQueuePost(const ThreadQueue::JobType& job);
+
+    template <typename T>
+    T threadQueueCall(const std::function<T ()>& job)
+    {
+        return threadQueue().call<T>(job);
+    }
 }

@@ -26,18 +26,18 @@
 
 /// @brief A convenience wrapper around the string version of the deliverLogEvent() function that
 /// automatically adds in the file name and line number of the locaton where the message is sent.
-#ifndef LOGGER
 #define LOGGER(severity, ...) Clypsalot::deliverLogEvent(LOG_SOURCE, __FILE__, __LINE__, Clypsalot::LogSeverity::severity, [&]() -> std::string { return Clypsalot::makeString(__VA_ARGS__); })
-#endif
 
 /// @brief A convenience wrappar around the generator version of the deliverLogEvent() function
 /// that automatically adds in the file name and line number of the location where the message is
 /// sent.
-#ifndef LLOGGER
 #define LLOGGER(severity, block) Clypsalot::deliverLogEvent(LOG_SOURCE, __FILE__, __LINE__, Clypsalot::LogSeverity::severity, [&]() -> std::string block)
-#endif
 
 /**
  * @brief A convience macro for automatically giving the file and line data to the \ref fatalError() function.
  */
 #define FATAL_ERROR(message) Clypsalot::fatalError(message, __FILE__, __LINE__)
+
+// TODO There has got to be a better way to avoid having to specify the return type
+// when invoking threadQueueCall()
+#define THREAD_CALL(lambda) threadQueueCall(std::function(lambda))
