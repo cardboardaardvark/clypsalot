@@ -1,40 +1,39 @@
-#include <chrono>
-#include <cstdlib>
-#include <thread>
-
+#include <clypsalot/event.hxx>
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/util.hxx>
 
+using namespace Clypsalot;
+
+struct SomeEvent : public Event
+{ };
+
+struct OtherEvent : public Event
+{ };
+
 int main()
 {
-    auto& console = Clypsalot::logEngine().makeDestination<Clypsalot::ConsoleDestination>(Clypsalot::LogSeverity::trace);
+    logEngine().makeDestination<Clypsalot::ConsoleDestination>(Clypsalot::LogSeverity::trace);
 
-    for(size_t i = 0; i < 10; i++)
+    auto sender = std::make_shared<EventSender>();
+
+    sender->registerEvent<SomeEvent>();
+    sender->registerEvent<OtherEvent>();
+
+    auto someSubscription = sender->subscribe<SomeEvent>([](const Event&)
     {
-        std::thread([]
-        {
-            while(true)
-            {
-                const auto currentThread = std::this_thread::get_id();
-                const auto message = Clypsalot::makeString(currentThread, ": saying something");
-                LOGGER(trace, "trace");
-                LLOGGER(debug, { return "debug"; });
-                std::this_thread::sleep_for(std::chrono::milliseconds(std::rand() % 100));
-            }
-        }).detach();
-    }
+        LOGGER(info, "Got SomeEvent");
+    });
 
-    for(size_t i = 0; i < 10; i++)
+    auto otherSubscription = sender->subscribe<OtherEvent>([](const OtherEvent&)
     {
-        Clypsalot::LogSeverity severity = Clypsalot::LogSeverity::trace;
+        LOGGER(info, "Got OtherEvent");
+    });
 
-        if (i % 2 == 0)
-        {
-            severity = Clypsalot::LogSeverity::debug;
-        }
+    sender->send(SomeEvent());
+    sender->send(OtherEvent());
 
-        console.severity(severity);
-        std::this_thread::sleep_for(std::chrono::seconds(1));
-    }
+    otherSubscription = nullptr;
+    sender->send(SomeEvent());
+    sender->send(OtherEvent());
 }

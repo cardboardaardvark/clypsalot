@@ -13,10 +13,14 @@
 #pragma once
 
 #include <sstream>
+#include <string>
+#include <typeinfo>
 
 /// @file
 namespace Clypsalot
 {
+    std::string typeName(const std::type_info& type);
+
     ///@cond NO_DOCUMENT
     template <typename Arg>
     void _makeStringAppender(std::stringstream& sstream, const Arg& arg) noexcept {

@@ -30,7 +30,34 @@ namespace Clypsalot
          */
         const std::string message;
 
+        /// @cond NO_DOCUMENT
+        Error(const std::string& errorMessage);
+        /// @endcond
+        virtual ~Error() = default;
         virtual const char* what() const noexcept override;
+    };
+
+    /**
+     * @brief An exception for handling errors when using a named key.
+     */
+    struct KeyError : public Error
+    {
+        /// @brief The key name related to the error.
+        const std::string key;
+
+        /// @cond NO_DOCUMENT
+        KeyError(const std::string& errorMessage, const std::string& keyName);
+        /// @endcond
+    };
+
+    /**
+     * @brief A generic error for problems that arrise at runtime.
+     */
+    struct RuntimeError : public Error
+    {
+        /// @cond NO_DOCUMENT
+        RuntimeError(const std::string& errorMessage);
+        /// @endcond
     };
 
     [[noreturn]] void fatalError(const std::string& message, const char* file, const std::size_t line);

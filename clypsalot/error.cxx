@@ -19,6 +19,12 @@
 /// @file
 namespace Clypsalot
 {
+    /// @cond NO_DOCUMENT
+    Error::Error(const std::string& errorMessage) :
+        message(errorMessage)
+    { }
+    /// @endcond
+
     /**
      * @brief Retrieve the contents of \ref Error::message
      * @return A pointer to a C string version of the error message.
@@ -27,6 +33,19 @@ namespace Clypsalot
     {
         return message.c_str();
     }
+
+    /// @cond NO_DOCUMENT
+    KeyError::KeyError(const std::string& errorMessage, const std::string& keyName) :
+        Error(errorMessage),
+        key(keyName)
+    { }
+    /// @endcond
+
+    /// @cond NO_DOCUMENT
+    RuntimeError::RuntimeError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
+    /// @endcond
 
     /**
      * @brief Output a message to the console and then terminate the program.
