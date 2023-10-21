@@ -148,6 +148,8 @@ namespace Clypsalot
     {
         const auto& type = typeid(event);
 
+        LOGGER(trace, "Sending event: ", typeName(type));
+
         std::unique_lock lock(mutex);
 
         if (! subscribers.contains(type))

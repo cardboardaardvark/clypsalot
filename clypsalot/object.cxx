@@ -2,8 +2,9 @@
 
 #include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
-#include <clypsalot/object.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/object.hxx>
+#include <clypsalot/port.hxx>
 #include <clypsalot/util.hxx>
 
 /// @file
@@ -54,7 +55,17 @@ namespace Clypsalot
     }
 
     Object::~Object()
-    { }
+    {
+        for (const auto output : outputPorts)
+        {
+            delete output;
+        }
+
+        for (const auto input : inputPorts)
+        {
+            delete input;
+        }
+    }
 
     ObjectState Object::state() const noexcept
     {
@@ -187,6 +198,96 @@ namespace Clypsalot
         }
 
         events->send(ObjectShutdownEvent(shared_from_this()));
+    }
+
+    bool Object::hasOutput(const std::string& name) noexcept
+    {
+        assert(mutex.haveLock());
+
+        for (const auto& output : outputPorts)
+        {
+            if (output->name() == name)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    OutputPort& Object::output(const std::string& name)
+    {
+        assert(mutex.haveLock());
+
+        for(auto& output : outputPorts)
+        {
+            if (output->name() == name)
+            {
+                return *output;
+            }
+        }
+
+        throw KeyError(makeString("No such output port: ", name), name);
+    }
+
+    OutputPort& Object::addOutput(OutputPort* output)
+    {
+        assert(mutex.haveLock());
+
+        LOGGER(trace, "Adding output: ", output->name());
+
+        if (hasOutput(output->name()))
+        {
+            throw KeyError(makeString("Duplicate output port name: ", output->name()), output->name());
+        }
+
+        outputPorts.push_back(output);
+        return *output;
+    }
+
+    bool Object::hasInput(const std::string& name) noexcept
+    {
+        assert(mutex.haveLock());
+
+        for (const auto& input : inputPorts)
+        {
+            if (input->name() == name)
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    InputPort& Object::input(const std::string& name)
+    {
+        assert(mutex.haveLock());
+
+        for(auto& input : inputPorts)
+        {
+            if (input->name() == name)
+            {
+                return *input;
+            }
+        }
+
+        throw KeyError(makeString("No such input port: ", name), name);
+    }
+
+    InputPort& Object::addInput(InputPort* input)
+    {
+        assert(mutex.haveLock());
+
+        LOGGER(trace, "Adding input: ", input->name());
+
+        if (hasInput(input->name()))
+        {
+            throw KeyError(makeString("Duplicate input port name: ", input->name()), input->name());
+        }
+
+        inputPorts.push_back(input);
+        return *input;
     }
 
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept

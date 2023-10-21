@@ -10,24 +10,9 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-/**
- * @file
- *
- * All forward declarations should be put into this header and the header included when a forward
- * declare is needed instead of spreading the forward declarations around the individual header
- * files.
- */
-
 #pragma once
 
 namespace Clypsalot
 {
-    class EventSender;
-    class InputPort;
-    class LogEngine;
-    class Object;
-    struct ObjectDescriptor;
-    class OutputPort;
-    class PortLink;
-    struct PortTypeDescriptor;
+    void initTesting();
 }

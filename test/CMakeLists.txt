@@ -1,0 +1,18 @@
+unset(CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+unset(CMAKE_ARCHIVE_OUTPUT_DIRECTORY)
+unset(CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+
+add_library(
+    ${CLYPSALOT_TEST_LIB_TARGET} SHARED EXCLUDE_FROM_ALL
+
+    lib/test.hxx
+    lib/test.cxx
+    module/module.hxx
+    module/module.cxx
+    module/object.hxx
+    module/object.cxx
+    module/port.hxx
+    module/port.cxx
+)
+
+target_link_libraries(${CLYPSALOT_TEST_LIB_TARGET} clypsalot)

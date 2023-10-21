@@ -150,4 +150,19 @@ namespace Clypsalot
             return subscription;
         }
     };
+
+    class Eventful
+    {
+        protected:
+        const std::shared_ptr<EventSender> events = std::make_shared<EventSender>();
+
+        public:
+        template <std::derived_from<Event> T>
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const Subscriber<T>::Handler& handler)
+        {
+            // No lock on the object mutex is needed because the EventSender is thread safe
+            // and the events shared_ptr never changes after construction.
+            return events->subscribe<T>(handler);
+        }
+    };
 }

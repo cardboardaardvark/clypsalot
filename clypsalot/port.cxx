@@ -10,24 +10,36 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-/**
- * @file
- *
- * All forward declarations should be put into this header and the header included when a forward
- * declare is needed instead of spreading the forward declarations around the individual header
- * files.
- */
-
-#pragma once
+#include <clypsalot/port.hxx>
 
 namespace Clypsalot
 {
-    class EventSender;
-    class InputPort;
-    class LogEngine;
-    class Object;
-    struct ObjectDescriptor;
-    class OutputPort;
-    class PortLink;
-    struct PortTypeDescriptor;
+    PortLink::PortLink(const OutputPort& from, const InputPort& to) :
+        fromPort(from),
+        toPort(to)
+    { }
+
+    Port::Port(const std::string& name, const PortType& type, Object& parent) :
+        parentObject(parent),
+        portName(name),
+        portType(type)
+    { }
+
+    const std::string& Port::name() const
+    {
+        return portName;
+    }
+
+    const PortType& Port::type() const
+    {
+        return portType;
+    }
+
+    OutputPort::OutputPort(const std::string& name, const PortType& type, Object& parent) :
+        Port(name, type, parent)
+    { }
+
+    InputPort::InputPort(const std::string& name, const PortType& type, Object& parent) :
+        Port(name, type, parent)
+    { }
 }

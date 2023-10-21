@@ -135,12 +135,12 @@ namespace Clypsalot
         return tryLock();
     }
 
-    void Lockable::lock()
+    void Lockable::lock() const
     {
         mutex.lock();
     }
 
-    void Lockable::unlock()
+    void Lockable::unlock() const
     {
         mutex.unlock();
     }

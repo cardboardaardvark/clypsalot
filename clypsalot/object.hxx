@@ -14,6 +14,7 @@
 
 #include <any>
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <string>
 
@@ -26,6 +27,7 @@ namespace Clypsalot
 {
     using ObjectConfig = std::initializer_list<std::tuple<std::string, std::any>>;
     using SharedObject = std::shared_ptr<Object>;
+    using ObjectConstructor = std::function<SharedObject ()>;
 
     enum class ObjectState : uint_fast8_t
     {
@@ -66,36 +68,74 @@ namespace Clypsalot
         ObjectStoppedEvent(const SharedObject& sender);
     };
 
-    class Object : public Lockable, public std::enable_shared_from_this<Object>
+    class Object : public Lockable, public Eventful, public std::enable_shared_from_this<Object>
     {
         ObjectState currentState = ObjectState::initializing;
-        const std::shared_ptr<EventSender> events = std::make_shared<EventSender>();
 
         void state(const ObjectState newState);
 
         protected:
+        std::vector<OutputPort*> outputPorts;
+        std::vector<InputPort*> inputPorts;
+
         void fault(const std::string& message);
         virtual void handleInit(const ObjectConfig& config);
         virtual void handleConfigure(const ObjectConfig& config);
         void shutdown();
+        bool hasOutput(const size_t number) noexcept;
+        bool hasOutput(const std::string& name) noexcept;
+        OutputPort& output(const size_t number);
+        OutputPort& output(const std::string& name);
+        OutputPort& addOutput(OutputPort* output);
+
+        template <typename T>
+        OutputPort& addOutput(const std::string& portName)
+        {
+            auto output = new T(portName, *this);
+
+            try
+            {
+                return addOutput(output);
+            }
+            catch (...)
+            {
+                delete output;
+                throw;
+            }
+        }
+
+        bool hasInput(const size_t number) noexcept;
+        bool hasInput(const std::string& name) noexcept;
+        InputPort& input(const size_t number);
+        InputPort& input(const std::string& name);
+        InputPort& addInput(InputPort* input);
+
+        template <typename T>
+        InputPort& addInput(const std::string& portName)
+        {
+            auto input = new T(portName, *this);
+
+            try
+            {
+                return addInput(input);
+            }
+            catch (...)
+            {
+                delete input;
+                throw;
+            }
+        }
 
         public:
         Object();
         Object(const Object&) = delete;
         virtual ~Object();
         void operator=(const Object&) = delete;
+        virtual const std::string& kind() noexcept = 0;
         ObjectState state() const noexcept;
         void init(const ObjectConfig& config = {});
         void configure(const ObjectConfig& config = {});
         void stop();
-
-        template <std::derived_from<Event> T>
-        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const Subscriber<T>::Handler& handler)
-        {
-            // No lock on the object mutex is needed because the EventSender is thread safe
-            // and the events shared_ptr never changes after construction.
-            return events->subscribe<T>(handler);
-        }
     };
 
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept;

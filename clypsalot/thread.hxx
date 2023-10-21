@@ -74,7 +74,7 @@ namespace Clypsalot
     {
         protected:
         /// @brief The mutex used for the object.
-        Mutex mutex;
+        mutable Mutex mutex;
 
         public:
         Lockable() = default;
@@ -83,8 +83,8 @@ namespace Clypsalot
         void operator=(const Lockable&) = delete;
         /// @cond NO_DOCUMENT
         bool haveLock();
-        void lock();
-        void unlock();
+        void lock() const;
+        void unlock() const;
         bool tryLock();
         bool try_lock();
         /// @endcond

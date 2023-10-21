@@ -1,6 +1,8 @@
 add_library(
-    ${CLYPSALOT_LIBRARY_TARGET} SHARED
+    ${CLYPSALOT_LIB_TARGET} SHARED
 
+    catalog.hxx
+    catalog.cxx
     error.hxx
     error.cxx
     event.hxx
@@ -9,12 +11,16 @@ add_library(
     logging.hxx
     logging.cxx
     macros.hxx
+    module.hxx
+    module.cxx
     object.hxx
     object.cxx
+    port.hxx
+    port.cxx
     thread.hxx
     thread.cxx
     util.hxx
     util.cxx
 )
 
-target_link_libraries(${CLYPSALOT_LIBRARY_TARGET} ${Boost_LIBRARIES})
+target_link_libraries(${CLYPSALOT_LIB_TARGET} ${Boost_LIBRARIES})

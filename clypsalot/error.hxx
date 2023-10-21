@@ -69,5 +69,10 @@ namespace Clypsalot
         StateError(const std::string& errorMessage);
     };
 
+    struct TypeError : public Error
+    {
+        TypeError(const std::string& errorMessage);
+    };
+
     [[noreturn]] void fatalError(const std::string& message, const char* file, const std::size_t line);
 }
