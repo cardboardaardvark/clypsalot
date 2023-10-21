@@ -60,5 +60,14 @@ namespace Clypsalot
         /// @endcond
     };
 
+    /**
+     * @brief Exception for when an operation is invalid given the current Object
+     * @ref ObjectState "state".
+     */
+    struct StateError : public Error
+    {
+        StateError(const std::string& errorMessage);
+    };
+
     [[noreturn]] void fatalError(const std::string& message, const char* file, const std::size_t line);
 }

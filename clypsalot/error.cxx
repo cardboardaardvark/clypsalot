@@ -47,6 +47,10 @@ namespace Clypsalot
     { }
     /// @endcond
 
+    StateError::StateError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
+
     /**
      * @brief Output a message to the console and then terminate the program.
      * @param message The message to send to the console.

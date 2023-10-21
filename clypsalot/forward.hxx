@@ -24,4 +24,5 @@ namespace Clypsalot
 {
     class EventSender;
     class LogEngine;
+    class Object;
 }

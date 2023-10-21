@@ -29,7 +29,7 @@ namespace Clypsalot {
     using LogMessageGenerator = std::function<std::string ()>;
 
     /// @brief The set of severities of log messages ordered from least to most severe.
-    enum class LogSeverity : int_fast8_t {
+    enum class LogSeverity : uint_fast8_t {
         // These must be in order from least to most severe
         trace = 1,
         debug,

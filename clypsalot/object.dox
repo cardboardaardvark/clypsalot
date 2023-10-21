@@ -1,0 +1,68 @@
+/*!
+@page object Clypsalot Objects
+
+Clypsalot @ref Object "objects" are the core concept of the Clypsalot library.
+
+@section Lifecycle
+
+An object lifecycle is a contract regarding object behavior and user requirements during specific phases of the lifecycle.
+In order the phases of the lifecycle are
+    -# construction
+    -# initialization
+    -# configuration
+    -# activation
+    -# operation
+    -# termination
+
+@subsection Construction
+
+In the construction phase the object must perform any allocations, if needed, to support the initialization phase of the lifecycle.
+If there are properties required or used during initialization they must exist after construction is done. When construction is
+completed the object will be in the @ref ObjectState "initializing state".
+
+@subsection Initialization
+
+In the initialization phase the object may use properties to prepare the configuration phase. If such properties are going to be used
+they must have been created during the construction phase. For instance the LADSPA object uses properties to define the filename
+of the loadable LADSPA module and the label of the plugin to use. The LADSPA plugin is then queried to identify what additional
+properties are required for the object as well as the input and output port names. When initialization is completed the object
+will be in the @ref ObjectState "configuring state".
+
+Initialization of the object is performed with the @ref Object::init() method. Initialization
+properties are introspectable with the @ref Object::initProperties() method and are added to the object with the
+@ref Object::addInitProperties() method.
+
+@subsection Configuration
+
+In the configuration phase the object assigns values to its properties using either the property defaults or the values specified to the
+@ref Object::configure() method. The object may also create input and output ports during the
+configuration phase. If the object supports user created ports they are created in this phase using the given configuration. If the
+object is in the @ref ObjectState "initializing state" during configuration the object will be initialized first
+with the supplied configuration. After configuration is completed the object will be in the
+@ref ObjectState "activating state".
+
+In the configuration phase all properties the object will have must already have been created. At the end of the configuration phase
+all of the ports that the object will have must have been created.
+
+@subsection Activation
+
+In the activation phase the object must allocate all resources, such as buffers, that will be required during the operation phase.
+From this point in the lifecycle and beyond no more properties or ports can be added. The object can only be activated if it is
+in the @ref ObjectState "activating state". The object is activated by calling the @ref Object::activate()
+method. After activation the object will be in the @ref ObjectState "paused state".
+
+@subsection Operation
+
+In the operation phase the object can be connected to and disconnected from other objects as well as supply and receive data on
+its ports. Additionally any properties that are not set as publicly read only can be changed by users. The object remains in the
+operation phase until it has stopped either because of a user action, because there is no more data to process, or because it
+has faulted. At the end of the operation phase the object will be in the @ref ObjectState "stopped state" or
+the @ref ObjectState "faulted state".
+
+@subsection Termination
+
+In the termination phase the object must be made ready for destruction. No connections can be made to or from the object. Prior
+to destruction the object must have all connections to other objects removed. Failure to remove all connections to other objects
+is a fatal error and will cause the program to abort. If the object is not in the  @ref ObjectState "stopped state" or
+the @ref ObjectState "faulted state" during destruction it is also a fatal error.
+*/

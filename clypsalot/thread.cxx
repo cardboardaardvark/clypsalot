@@ -135,6 +135,16 @@ namespace Clypsalot
         return tryLock();
     }
 
+    void Lockable::lock()
+    {
+        mutex.lock();
+    }
+
+    void Lockable::unlock()
+    {
+        mutex.unlock();
+    }
+
     bool SharedDebugMutex::_locked() const
     {
         return std::thread::id() != lockedBy;

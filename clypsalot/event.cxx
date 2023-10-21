@@ -23,9 +23,9 @@ namespace Clypsalot
     std::map<std::type_index, std::string> EventSender::eventNames = {};
     Mutex EventSender::eventNamesMutex = {};
 
-    [[noreturn]] static void noRegisteredEventError()
+    [[noreturn]] static void noRegisteredEventError(const std::type_info& type)
     {
-        throw RuntimeError("Event type is not registered with sender");
+        throw RuntimeError(makeString("Event type is not registered with sender: ", typeName(type)));
     }
 
     /// @cond NO_DOCUMENT
@@ -34,7 +34,7 @@ namespace Clypsalot
     { }
     /// @endcond
 
-    EventSender::SubscriberBase::SubscriberBase(const std::shared_ptr<Clypsalot::Subscription>& subscription) :
+    SubscriberBase::SubscriberBase(const std::shared_ptr<Clypsalot::Subscription>& subscription) :
         weakSubscription(subscription)
     { }
 
@@ -64,19 +64,31 @@ namespace Clypsalot
         return eventNames.at(type);
     }
 
-    void EventSender::_registerEvent(const std::type_info& type)
+    void EventSender::_add(const std::type_info& type)
     {
-        std::unique_lock lock(mutex);
+        assert(mutex.haveLock());
+
+        const auto eventName = typeName(type);
+        LOGGER(trace, "Adding event: ", eventName);
 
         const auto& [ iterator, result ] = subscribers.emplace(type, 0);
 
         if (! result) {
-            throw RuntimeError("Event is already registered with sender");
+            throw RuntimeError(makeString("Event is already registered with sender: ", eventName));
         }
 
-        lock.unlock();
-        lock = std::unique_lock(eventNamesMutex);
-        eventNames[type] = typeName(type);
+        std::unique_lock lock(eventNamesMutex);
+        eventNames[type] = eventName;
+    }
+
+    void EventSender::add(const EventTypeList& events)
+    {
+        std::unique_lock lock(mutex);
+
+        for(const auto event : events)
+        {
+            _add(*event);
+        }
     }
 
     void EventSender::_subscribe(const std::type_info& type, SubscriberBase* subscriber)
@@ -85,7 +97,7 @@ namespace Clypsalot
 
         if (! subscribers.contains(type))
         {
-            noRegisteredEventError();
+            noRegisteredEventError(type);
         }
 
         auto& eventSubscribers = subscribers.at(type);
@@ -140,7 +152,7 @@ namespace Clypsalot
 
         if (! subscribers.contains(type))
         {
-            noRegisteredEventError();
+            noRegisteredEventError(type);
         }
 
         _cleanupSubscribers();

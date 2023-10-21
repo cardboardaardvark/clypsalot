@@ -13,6 +13,7 @@
 #pragma once
 
 #include <functional>
+#include <initializer_list>
 #include <map>
 #include <memory>
 #include <typeindex>
@@ -39,6 +40,8 @@ namespace Clypsalot
         virtual ~Event() = default;
     };
 
+    using EventTypeList = std::initializer_list<const std::type_info*>;
+
     /**
      * @brief A subscription for events.
      *
@@ -58,45 +61,45 @@ namespace Clypsalot
         bool valid() const noexcept;
     };
 
+    struct SubscriberBase
+    {
+        const std::weak_ptr<Subscription> weakSubscription;
+
+        SubscriberBase(const std::shared_ptr<Subscription>& subscription);
+        virtual ~SubscriberBase() = default;
+        virtual void send(const Event& event) = 0;
+    };
+
+    template <typename T>
+    struct Subscriber : SubscriberBase
+    {
+        using EventType = T;
+        using Handler = std::function<void (const EventType&)>;
+
+        const Handler handler;
+
+        Subscriber(const std::shared_ptr<Subscription>& subscription, const Handler& eventHandler) :
+            SubscriberBase(subscription),
+            handler(eventHandler)
+        { }
+
+        virtual void send(const Event& event)
+        {
+            handler(dynamic_cast<const EventType&>(event));
+        }
+    };
+
     /**
      * @brief Manage event subscriptions and send events to the subscribers.
      */
     class EventSender : Lockable, public std::enable_shared_from_this<EventSender>
     {
-        struct SubscriberBase
-        {
-            const std::weak_ptr<Subscription> weakSubscription;
-
-            SubscriberBase(const std::shared_ptr<Subscription>& subscription);
-            virtual ~SubscriberBase() = default;
-            virtual void send(const Event& event) = 0;
-        };
-
-        template <typename T>
-        struct Subscriber : SubscriberBase
-        {
-            using EventType = T;
-            using Handler = std::function<void (const EventType&)>;
-
-            const Handler handler;
-
-            Subscriber(const std::shared_ptr<Subscription>& subscription, const Handler& eventHandler) :
-                SubscriberBase(subscription),
-                handler(eventHandler)
-            { }
-
-            virtual void send(const Event& event)
-            {
-                handler(dynamic_cast<const EventType&>(event));
-            }
-        };
-
         static std::map<std::type_index, std::string> eventNames;
         static Mutex eventNamesMutex;
         std::map<std::type_index, std::vector<SubscriberBase*>> subscribers;
 
         static std::string eventName(const std::type_index& type);
-        void _registerEvent(const std::type_info& type);
+        void _add(const std::type_info& type);
         void _subscribe(const std::type_info& type, SubscriberBase* subscriber);
         void _cleanupSubscribers() noexcept;
 
@@ -104,7 +107,8 @@ namespace Clypsalot
         ~EventSender();
         void cleanupSubscribers() noexcept;
         void send(const Event& event);
-
+        /// Because register is a keyword
+        void add(const EventTypeList& events);
         /**
          * @brief Register an event so it can be sent later.
          *
@@ -114,11 +118,12 @@ namespace Clypsalot
          *
          * @throws RuntimeError Event is already registered with sender
          */
-        template <typename T>
-        void registerEvent()
+        template <std::derived_from<Event> T>
+        void add()
         {
+            std::unique_lock lock(mutex);
             const auto& type = typeid(T);
-            _registerEvent(type);
+            _add(type);
         }
 
         /**
@@ -127,8 +132,8 @@ namespace Clypsalot
          * @return An instance of a Subscription
          * @throws RuntimeError Event type is not registered with sender
          */
-        template <typename T>
-        std::shared_ptr<Subscription> subscribe(const Subscriber<T>::Handler& handler)
+        template <std::derived_from<Event> T>
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const Subscriber<T>::Handler& handler)
         {
             auto subscription = std::make_shared<Subscription>(shared_from_this());
             auto subscriber = new Subscriber<T>(subscription, handler);

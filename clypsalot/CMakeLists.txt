@@ -9,6 +9,8 @@ add_library(
     logging.hxx
     logging.cxx
     macros.hxx
+    object.hxx
+    object.cxx
     thread.hxx
     thread.cxx
     util.hxx
