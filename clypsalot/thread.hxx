@@ -82,7 +82,7 @@ namespace Clypsalot
         ~Lockable() = default;
         void operator=(const Lockable&) = delete;
         /// @cond NO_DOCUMENT
-        bool haveLock();
+        bool haveLock() const;
         void lock() const;
         void unlock() const;
         bool tryLock();

@@ -21,8 +21,8 @@ namespace Clypsalot
         static const std::string typeName;
         static const TestPortType portTypeSingleton;
 
-        virtual const std::string& name() noexcept override;
-        virtual PortLink* makeLink(const OutputPort& from, const InputPort& to) const override;
+        virtual const std::string& name() const noexcept override;
+        virtual PortLink* makeLink(OutputPort& from, InputPort& to) const override;
     };
 
     class TestOutputPort : public OutputPort
@@ -40,6 +40,6 @@ namespace Clypsalot
     class TestPortLink : public PortLink
     {
         public:
-        TestPortLink(const TestOutputPort& from, const TestInputPort& to);
+        TestPortLink(TestOutputPort& from, TestInputPort& to);
     };
 }

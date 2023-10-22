@@ -128,6 +128,7 @@ namespace Clypsalot {
     };
 
     LogEngine& logEngine() noexcept;
+    LogSeverity logSeverity(const std::string& name);
     void deliverLogEvent(const char* source, const char* file, const uint32_t line, const LogSeverity severity, const std::string message) noexcept;
     void deliverLogEvent(const char* source, const char* file, const uint32_t line, const LogSeverity severity, const LogMessageGenerator& generator) noexcept;
     std::string asString(const LogSeverity severity) noexcept;

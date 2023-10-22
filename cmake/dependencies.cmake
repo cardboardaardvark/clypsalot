@@ -1,2 +1,2 @@
-find_package(Boost)
+find_package(Boost REQUIRED OPTIONAL_COMPONENTS unit_test_framework)
 find_package(Doxygen)

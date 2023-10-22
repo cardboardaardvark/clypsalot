@@ -23,4 +23,4 @@ add_library(
     util.cxx
 )
 
-target_link_libraries(${CLYPSALOT_LIB_TARGET} ${Boost_LIBRARIES})
+target_link_libraries(${CLYPSALOT_LIB_TARGET} Boost::boost)

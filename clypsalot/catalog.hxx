@@ -61,7 +61,7 @@ namespace Clypsalot
         void operator=(const ObjectCatalog&) = delete;
         void add(const ObjectDescriptor& descriptor);
         std::vector<std::string> kinds() const noexcept;
-        SharedObject make(const std::string& kind) const noexcept;
+        SharedObject make(const std::string& kind) const;
     };
 
     PortTypeCatalog& portTypeCatalog();

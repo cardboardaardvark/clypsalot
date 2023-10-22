@@ -105,13 +105,13 @@ namespace Clypsalot
         return result;
     }
 
-    SharedObject ObjectCatalog::make(const std::string& kind) const noexcept
+    SharedObject ObjectCatalog::make(const std::string& kind) const
     {
         std::unique_lock lock(*this);
 
         if (! catalogEntries.contains(kind))
         {
-            return nullptr;
+            throw KeyError(makeString("Unknown object kind: ", kind), kind);
         }
 
         return catalogEntries.at(kind)->constructor();

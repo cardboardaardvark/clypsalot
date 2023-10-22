@@ -12,7 +12,22 @@
 
 #pragma once
 
+// These must preceed the include of the unit_test.hpp
+#define BOOST_TEST_NO_MAIN
+#define BOOST_TEST_ALTERNATIVE_INIT_API
+
+#ifdef TEST_NAME
+#define BOOST_TEST_MODULE util
+#endif
+
+#include <boost/test/unit_test.hpp>
+
+#define TEST_MAIN_FUNCTION int main(int argc, char* argv[]) { return runTests(argc, argv); }
+#define TEST_OBJECT_KIND "Test::Object"
+
 namespace Clypsalot
 {
-    void initTesting();
+    int runTests(int argc, char* argv[]);
+    void initTesting(int argc, char* argv[]);
+    bool initBoostUnitTest();
 }

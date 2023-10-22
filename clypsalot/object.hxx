@@ -13,6 +13,7 @@
 #pragma once
 
 #include <any>
+#include <condition_variable>
 #include <cstdint>
 #include <functional>
 #include <memory>
@@ -40,19 +41,19 @@ namespace Clypsalot
 
     struct ObjectEvent : Event
     {
-        SharedObject object;
-        ObjectEvent(const SharedObject& sender);
+        Object& object;
+        ObjectEvent(Object& sender);
     };
 
     struct ObjectFaultedEvent : ObjectEvent
     {
         const std::string message;
-        ObjectFaultedEvent(const SharedObject& sender, const std::string& reason);
+        ObjectFaultedEvent(Object& sender, const std::string& reason);
     };
 
     struct ObjectShutdownEvent : ObjectEvent
     {
-        ObjectShutdownEvent(const SharedObject& sender);
+        ObjectShutdownEvent(Object& sender);
     };
 
     struct ObjectStateChangedEvent : public ObjectEvent
@@ -60,12 +61,12 @@ namespace Clypsalot
         ObjectState oldState;
         ObjectState newState;
 
-        ObjectStateChangedEvent(const SharedObject& sender, const ObjectState previous, const ObjectState current);
+        ObjectStateChangedEvent(Object& sender, const ObjectState previous, const ObjectState current);
     };
 
     struct ObjectStoppedEvent : public ObjectEvent
     {
-        ObjectStoppedEvent(const SharedObject& sender);
+        ObjectStoppedEvent(Object& sender);
     };
 
     class Object : public Lockable, public Eventful, public std::enable_shared_from_this<Object>
@@ -73,22 +74,19 @@ namespace Clypsalot
         ObjectState currentState = ObjectState::initializing;
 
         void state(const ObjectState newState);
+        void shutdown();
 
         protected:
+        std::condition_variable_any condVar;
         std::vector<OutputPort*> outputPorts;
         std::vector<InputPort*> inputPorts;
 
         void fault(const std::string& message);
         virtual void handleInit(const ObjectConfig& config);
         virtual void handleConfigure(const ObjectConfig& config);
-        void shutdown();
-        bool hasOutput(const size_t number) noexcept;
-        bool hasOutput(const std::string& name) noexcept;
-        OutputPort& output(const size_t number);
-        OutputPort& output(const std::string& name);
         OutputPort& addOutput(OutputPort* output);
 
-        template <typename T>
+        template <std::derived_from<OutputPort> T>
         OutputPort& addOutput(const std::string& portName)
         {
             auto output = new T(portName, *this);
@@ -104,13 +102,9 @@ namespace Clypsalot
             }
         }
 
-        bool hasInput(const size_t number) noexcept;
-        bool hasInput(const std::string& name) noexcept;
-        InputPort& input(const size_t number);
-        InputPort& input(const std::string& name);
         InputPort& addInput(InputPort* input);
 
-        template <typename T>
+        template <std::derived_from<InputPort> T>
         InputPort& addInput(const std::string& portName)
         {
             auto input = new T(portName, *this);
@@ -127,18 +121,37 @@ namespace Clypsalot
         }
 
         public:
+        const size_t id;
+
         Object();
         Object(const Object&) = delete;
-        virtual ~Object();
+        virtual ~Object() noexcept;
         void operator=(const Object&) = delete;
         virtual const std::string& kind() noexcept = 0;
         ObjectState state() const noexcept;
+        void wait(const std::function<bool ()> tester);
         void init(const ObjectConfig& config = {});
         void configure(const ObjectConfig& config = {});
         void stop();
+        const std::vector<OutputPort*>& outputs() const noexcept;
+        bool hasOutput(const size_t number) noexcept;
+        bool hasOutput(const std::string& name) noexcept;
+        OutputPort& output(const size_t number);
+        OutputPort& output(const std::string& name);
+        const std::vector<InputPort*>& inputs() const noexcept;
+        bool hasInput(const size_t number) noexcept;
+        bool hasInput(const std::string& name) noexcept;
+        InputPort& input(const size_t number);
+        InputPort& input(const std::string& name);
     };
 
+    bool objectIsShutdown(const Object& object) noexcept;
+    bool objectIsBusy(const Object& object) noexcept;
+    bool objectIsPreparing(const Object& object) noexcept;
+    void stopObject(Object& object);
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept;
+    std::string asString(const Object& object) noexcept;
+    std::ostream& operator<<(std::ostream& os, const Object& object) noexcept;
     std::string asString(const ObjectState state) noexcept;
     std::ostream& operator<<(std::ostream& os, const ObjectState state) noexcept;
     std::string formatStateChange(const ObjectState oldState, const ObjectState newState) noexcept;

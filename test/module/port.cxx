@@ -20,12 +20,12 @@ namespace Clypsalot
     const std::string TestPortType::typeName = "test";
     const TestPortType TestPortType::portTypeSingleton = TestPortType();
 
-    const std::string& TestPortType::name() noexcept
+    const std::string& TestPortType::name() const noexcept
     {
         return typeName;
     }
 
-    PortLink* TestPortType::makeLink(const OutputPort& from, const InputPort& to) const
+    PortLink* TestPortType::makeLink(OutputPort& from, InputPort& to) const
     {
         const auto& ourTypeInfo = typeid(TestPortType);
         const auto& fromType = from.type();
@@ -37,8 +37,8 @@ namespace Clypsalot
         }
 
         return new TestPortLink(
-            dynamic_cast<const TestOutputPort&>(from),
-            dynamic_cast<const TestInputPort&>(to)
+            dynamic_cast<TestOutputPort&>(from),
+            dynamic_cast<TestInputPort&>(to)
         );
     }
 
@@ -50,7 +50,7 @@ namespace Clypsalot
         InputPort(name, TestPortType::portTypeSingleton, parent)
     { }
 
-    TestPortLink::TestPortLink(const TestOutputPort& from, const TestInputPort& to) :
+    TestPortLink::TestPortLink(TestOutputPort& from, TestInputPort& to) :
         PortLink(from, to)
     { }
 }

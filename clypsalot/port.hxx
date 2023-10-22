@@ -25,17 +25,22 @@ namespace Clypsalot
     {
         PortType() = default;
         virtual ~PortType() = default;
-        virtual const std::string& name() noexcept = 0;
-        virtual PortLink* makeLink(const OutputPort& from, const InputPort& to) const = 0;
+        virtual const std::string& name() const noexcept = 0;
+        virtual PortLink* makeLink(OutputPort& from, InputPort& to) const = 0;
     };
 
     class PortLink : Lockable
     {
-        const OutputPort& fromPort;
-        const InputPort& toPort;
+        OutputPort& fromPort;
+        InputPort& toPort;
 
         public:
-        PortLink(const OutputPort& from, const InputPort& to);
+        PortLink(OutputPort& from, InputPort& to);
+        PortLink(const PortLink&) = delete;
+        virtual ~PortLink() = default;
+        void operator=(const PortLink&) = delete;
+        bool operator==(const PortLink& other);
+        bool operator!=(const PortLink& other);
         OutputPort& from() const noexcept;
         InputPort& to() const noexcept;
     };
@@ -49,25 +54,38 @@ namespace Clypsalot
 
         protected:
         Port(const std::string& name, const PortType& type, Object& parent);
+        PortLink* findLink(const OutputPort& from, const InputPort& to) const noexcept;
 
         public:
-        virtual ~Port() = default;
+        Port(const Port&) = delete;
+        virtual ~Port();
+        void operator=(const Port&) = delete;
+        bool operator==(const Port& other);
+        bool operator!=(const Port& other);
         const std::string& name() const;
         const PortType& type() const;
-        Object& parent();
-        const std::vector<PortLink*> links() const noexcept;
+        Object& parent() const;
+        const std::vector<PortLink*>& links() const noexcept;
         void addLink(PortLink* link) noexcept;
+        void removeLink(const PortLink* link);
     };
 
     class OutputPort : public Port
     {
         public:
         OutputPort(const std::string& name, const PortType& type, Object& parent);
+        PortLink* findLink(const InputPort& to) const noexcept;
     };
 
     class InputPort : public Port
     {
         public:
         InputPort(const std::string& name, const PortType& type, Object& parent);
+        PortLink* findLink(const OutputPort& from) const noexcept;
     };
+
+    PortLink& linkPorts(OutputPort& output, InputPort& input);
+    void unlinkPorts(OutputPort& output, InputPort& input);
+    std::string asString(const Port& port) noexcept;
+    std::ostream& operator<<(std::ostream& os, const Port& port) noexcept;
 }

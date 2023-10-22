@@ -126,6 +126,11 @@ namespace Clypsalot
         return lockResult;
     }
 
+    bool Lockable::haveLock() const
+    {
+        return mutex.haveLock();
+    }
+
     /**
      * @brief Compatibility with the Lockable named requirement
      * @return The return value from \ref DebugMutex::tryLock() "tryLock()".

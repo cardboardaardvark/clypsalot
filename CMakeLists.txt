@@ -24,6 +24,7 @@ set(CLYPSALOT_LIB_TARGET clypsalot)
 set(CLYPSALOT_TEST_LIB_TARGET clypsalot-test)
 
 include(${CLYPSALOT_CMAKE_DIR}/dependencies.cmake)
+include(${CLYPSALOT_CMAKE_DIR}/testing.cmake)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror -Wfatal-errors)
 
@@ -43,10 +44,14 @@ add_compile_definitions(CLYPSALOT_PROJECT_DIR="${CMAKE_SOURCE_DIR}/")
 include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
 
 add_subdirectory(${CLYPSALOT_LIBRARY_SOURCE_DIRECTORY})
-add_subdirectory(test)
 
-add_executable(test test.cxx)
-target_link_libraries(test ${CLYPSALOT_LIB_TARGET} ${CLYPSALOT_TEST_LIB_TARGET})
+if(Boost_UNIT_TEST_FRAMEWORK_FOUND)
+    add_subdirectory(test)
+endif()
+
+add_executable(author EXCLUDE_FROM_ALL author.cxx)
+target_link_libraries(author ${CLYPSALOT_TEST_LIB_TARGET})
+set_target_properties(author PROPERTIES RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 
 if(${DOXYGEN_FOUND})
     set(DOXYGEN_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/doc)

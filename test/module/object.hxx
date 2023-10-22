@@ -24,5 +24,17 @@ namespace Clypsalot
         static SharedObject make();
         TestObject();
         virtual const std::string& kind() noexcept override;
+
+        template <std::derived_from<OutputPort> T, typename... Args>
+        OutputPort& publicAddOutput(Args... args)
+        {
+            return addOutput<T>(args...);
+        }
+
+        template <std::derived_from<InputPort> T, typename... Args>
+        InputPort& publicAddInput(Args... args)
+        {
+            return addInput<T>(args...);
+        }
     };
 }

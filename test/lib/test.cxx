@@ -10,15 +10,42 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-#include <clypsalot/module.hxx>
+#include <boost/test/unit_test.hpp>
+
+#include <clypsalot/logging.hxx>
+#include <clypsalot/macros.hxx>
+#include <clypsalot/util.hxx>
 
 #include "test/lib/test.hxx"
 #include "test/module/module.hxx"
 
 namespace Clypsalot
 {
-    void initTesting()
+    int runTests(int argc, char* argv[])
     {
+        auto result = boost::unit_test::unit_test_main(initBoostUnitTest, argc, argv);
+        return result;
+    }
+
+    void initTesting(int argc, char* argv[])
+    {
+        auto& destination = logEngine().makeDestination<ConsoleDestination>(LogSeverity::info);
+
+        if (argc == 2)
+        {
+            destination.severity(logSeverity(argv[1]));
+        }
+
         importModule(testModuleDescriptor());
+        LOGGER(debug, "Test environment is initialized");
+    }
+
+    bool initBoostUnitTest()
+    {
+        auto argc = boost::unit_test::framework::master_test_suite().argc;
+        auto argv = boost::unit_test::framework::master_test_suite().argv;
+
+        initTesting(argc, argv);
+        return true;
     }
 }

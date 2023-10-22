@@ -14,6 +14,7 @@
 #include <cstring>
 #include <iostream>
 
+#include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
 #include <clypsalot/util.hxx>
 
@@ -105,6 +106,20 @@ namespace Clypsalot {
     {
         static auto engine = new LogEngine;
         return *engine;
+    }
+
+    LogSeverity logSeverity(const std::string& name)
+    {
+        if (name == "trace") return LogSeverity::trace;
+        if (name == "debug") return LogSeverity::debug;
+        if (name == "verbose") return LogSeverity::verbose;
+        if (name == "info") return LogSeverity::info;
+        if (name == "notice") return LogSeverity::notice;
+        if (name == "warn") return LogSeverity::warn;
+        if (name == "error") return LogSeverity::error;
+        if (name == "fatal") return LogSeverity::fatal;
+
+        throw KeyError(makeString("Unknown log severity: ", name), name);
     }
 
     /// @brief If at least one registered LogDestination will accept the log message create

@@ -1,3 +1,4 @@
+#include <atomic>
 #include <cassert>
 
 #include <clypsalot/error.hxx>
@@ -10,6 +11,8 @@
 /// @file
 namespace Clypsalot
 {
+    static std::atomic<size_t> nextObjectId = ATOMIC_VAR_INIT(1);
+
     static const EventTypeList objectEvents
     {
         &typeid(ObjectFaultedEvent),
@@ -23,39 +26,51 @@ namespace Clypsalot
         throw StateError(makeString("Operation is invalid given current object state: ", currentState));
     }
 
-    ObjectEvent::ObjectEvent(const SharedObject& sender) :
+    ObjectEvent::ObjectEvent(Object& sender) :
         Event(),
         object(sender)
     { }
 
-    ObjectFaultedEvent::ObjectFaultedEvent(const SharedObject& sender, const std::string& reason) :
+    ObjectFaultedEvent::ObjectFaultedEvent(Object& sender, const std::string& reason) :
         ObjectEvent(sender),
         message(reason)
     { }
 
-    ObjectShutdownEvent::ObjectShutdownEvent(const SharedObject& sender) :
+    ObjectShutdownEvent::ObjectShutdownEvent(Object& sender) :
         ObjectEvent(sender)
     { }
 
-    ObjectStateChangedEvent::ObjectStateChangedEvent(const SharedObject& sender, const ObjectState previous, const ObjectState current) :
+    ObjectStateChangedEvent::ObjectStateChangedEvent(Object& sender, const ObjectState previous, const ObjectState current) :
         ObjectEvent(sender),
         oldState(previous),
         newState(current)
     { }
 
-    ObjectStoppedEvent::ObjectStoppedEvent(const SharedObject& sender) :
+    ObjectStoppedEvent::ObjectStoppedEvent(Object& sender) :
         ObjectEvent(sender)
     { }
 
-    Object::Object()
+    Object::Object() :
+        id(nextObjectId++)
     {
+        LOGGER(debug, "Constructing object ", *this);
+
         std::unique_lock lock(mutex);
 
         events->add(objectEvents);
     }
 
-    Object::~Object()
+    Object::~Object() noexcept
     {
+        LOGGER(debug, "Destroying object ", *this);
+
+        std::unique_lock lock(*this);
+
+        if (! objectIsPreparing(*this))
+        {
+            stopObject(*this);
+        }
+
         for (const auto output : outputPorts)
         {
             delete output;
@@ -86,7 +101,15 @@ namespace Clypsalot
 
         currentState = newState;
         LOGGER(trace, "Object changed state: ", formatStateChange(oldState, newState));
-        events->send(ObjectStateChangedEvent(shared_from_this(), oldState, currentState));
+        events->send(ObjectStateChangedEvent(*this, oldState, currentState));
+        condVar.notify_all();
+    }
+
+    void Object::wait(const std::function<bool ()> tester)
+    {
+        assert(haveLock());
+
+        condVar.wait(mutex, tester);
     }
 
     void Object::fault(const std::string& message)
@@ -95,7 +118,7 @@ namespace Clypsalot
 
         LOGGER(error, "Object faulted: ", message);
         state(ObjectState::faulted);
-        events->send(ObjectFaultedEvent(shared_from_this(), message));
+        events->send(ObjectFaultedEvent(*this, message));
         shutdown();
     }
 
@@ -174,15 +197,21 @@ namespace Clypsalot
     {
         assert(mutex.haveLock());
 
-        LOGGER(trace, "Stopping object");
-
-        if (currentState != ObjectState::paused)
+        if (objectIsShutdown(*this))
         {
+            return;
+        }
+
+        LOGGER(debug, "Stopping object");
+
+        if (objectIsBusy(*this))
+        {
+            LOGGER(error, "Attempt to stop object ", *this, " that was busy");
             objectStateError(currentState);
         }
 
         state(ObjectState::stopped);
-        events->send(ObjectStoppedEvent(shared_from_this()));
+        events->send(ObjectStoppedEvent(*this));
         shutdown();
     }
 
@@ -192,12 +221,20 @@ namespace Clypsalot
 
         LOGGER(trace, "Shutting down object");
 
-        if (currentState != ObjectState::faulted && currentState != ObjectState::stopped)
+        if (! objectIsShutdown(*this))
         {
+            LOGGER(error, "Attempt to shutdown object ", *this, " that was not in shutdown states");
             objectStateError(currentState);
         }
 
-        events->send(ObjectShutdownEvent(shared_from_this()));
+        events->send(ObjectShutdownEvent(*this));
+    }
+
+    const std::vector<OutputPort*>& Object::outputs() const noexcept
+    {
+        assert(haveLock());
+
+        return outputPorts;
     }
 
     bool Object::hasOutput(const std::string& name) noexcept
@@ -228,6 +265,13 @@ namespace Clypsalot
         }
 
         throw KeyError(makeString("No such output port: ", name), name);
+    }
+
+    const std::vector<InputPort*>& Object::inputs() const noexcept
+    {
+        assert(mutex.haveLock());
+
+        return inputPorts;
     }
 
     OutputPort& Object::addOutput(OutputPort* output)
@@ -290,6 +334,73 @@ namespace Clypsalot
         return *input;
     }
 
+    bool objectIsShutdown(const Object& object) noexcept
+    {
+        assert(object.haveLock());
+
+        const auto state = object.state();
+
+        switch (state)
+        {
+            case ObjectState::configuring: return false;
+            case ObjectState::faulted: return true;
+            case ObjectState::initializing: return false;
+            case ObjectState::paused: return false;
+            case ObjectState::stopped: return true;
+        }
+
+        FATAL_ERROR(makeString("Unhandled object state:", static_cast<int>(state)));
+    }
+
+    bool objectIsBusy(const Object& object) noexcept
+    {
+        assert(object.haveLock());
+
+        const auto state = object.state();
+
+        switch (state)
+        {
+            case ObjectState::configuring: return false;
+            case ObjectState::faulted: return false;
+            case ObjectState::initializing: return false;
+            case ObjectState::paused: return false;
+            case ObjectState::stopped: return false;
+        }
+
+        FATAL_ERROR(makeString("Unhandled object state:", static_cast<int>(state)));
+    }
+
+    bool objectIsPreparing(const Object& object) noexcept
+    {
+        assert(object.haveLock());
+
+        const auto state = object.state();
+
+        switch (state)
+        {
+            case ObjectState::configuring: return true;
+            case ObjectState::faulted: return false;
+            case ObjectState::initializing: return true;
+            case ObjectState::paused: return false;
+            case ObjectState::stopped: return false;
+        }
+
+        FATAL_ERROR(makeString("Unhandled object state:", static_cast<int>(state)));
+    }
+
+    void stopObject(Object& object)
+    {
+        assert(object.haveLock());
+
+        object.wait([&object]
+        {
+            LOGGER(trace, "Checking if object is busy; state=", object.state());
+            return ! objectIsBusy(object);
+        });
+
+        object.stop();
+    }
+
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept
     {
         switch (oldState)
@@ -311,6 +422,17 @@ namespace Clypsalot
         }
 
         return false;
+    }
+
+    std::string asString(const Object& object) noexcept
+    {
+        return std::string("Object #") + std::to_string(object.id);
+    }
+
+    std::ostream& operator<<(std::ostream& os, const Object& object) noexcept
+    {
+        os << asString(object);
+        return os;
     }
 
     std::string asString(const ObjectState state) noexcept
