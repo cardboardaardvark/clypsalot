@@ -1,3 +1,8 @@
+# This has to be before the include(CTest) and removing CMakeCache.txt will not cause
+# CTest to update the options.
+# https://stackoverflow.com/questions/52730994/how-to-pass-arguments-to-memcheck-with-ctest
+set(MEMORYCHECK_COMMAND_OPTIONS "--error-exitcode=1 --leak-check=full --show-leak-kinds=definite,possible,indirect --show-reachable=no --show-error-list=yes")
+
 include(CTest)
 
 set(CLYPSALOT_TEST_BIN_TARGET tests)
