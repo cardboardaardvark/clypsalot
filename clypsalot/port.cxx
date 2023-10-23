@@ -21,9 +21,13 @@
 
 namespace Clypsalot
 {
+    PortType::PortType(const std::string& name) :
+        name(name)
+    { }
+
     PortLink::PortLink(OutputPort& from, InputPort& to) :
-        fromPort(from),
-        toPort(to)
+        from(from),
+        to(to)
     { }
 
     bool PortLink::operator==(const PortLink& other)
@@ -37,16 +41,16 @@ namespace Clypsalot
     }
 
     Port::Port(const std::string& name, const PortType& type, Object& parent) :
-        parentObject(parent),
-        portName(name),
-        portType(type)
+        parent(parent),
+        name(name),
+        type(type)
     { }
 
     Port::~Port()
     {
         if (portLinks.size() > 0)
         {
-            FATAL_ERROR(makeString("Port had links during destruction: ", *this));
+            FATAL_ERROR(makeString("Port had links during destruction on ", parent));
         }
     }
 
@@ -60,44 +64,23 @@ namespace Clypsalot
         return this != &other;
     }
 
-    const std::string& Port::name() const
-    {
-        return portName;
-    }
-
-    Object& Port::parent() const
-    {
-        // No lock required because the parent object will never change after construction.
-        return parentObject;
-    }
-
-    OutputPort& PortLink::from() const noexcept
-    {
-        return fromPort;
-    }
-
-    InputPort& PortLink::to() const noexcept
-    {
-        return toPort;
-    }
-
     const std::vector<PortLink*>& Port::links() const noexcept
     {
-        assert(parentObject.haveLock());
+        assert(parent.haveLock());
 
         return portLinks;
     }
 
     void Port::addLink(PortLink* link) noexcept
     {
-        assert(parentObject.haveLock());
+        assert(parent.haveLock());
 
         portLinks.push_back(link);
     }
 
     void Port::removeLink(const PortLink* link)
     {
-        assert(parentObject.haveLock());
+        assert(parent.haveLock());
 
         for (auto i = portLinks.begin(); i != portLinks.end();)
         {
@@ -117,11 +100,11 @@ namespace Clypsalot
 
     PortLink* Port::findLink(const OutputPort& from, const InputPort& to) const noexcept
     {
-        assert(parentObject.haveLock());
+        assert(parent.haveLock());
 
         for (const auto link : portLinks)
         {
-            if (link->from() == from && link->to() == to)
+            if (link->from == from && link->to == to)
             {
                 return link;
             }
@@ -130,18 +113,13 @@ namespace Clypsalot
         return nullptr;
     }
 
-    const PortType& Port::type() const
-    {
-        return portType;
-    }
-
     OutputPort::OutputPort(const std::string& name, const PortType& type, Object& parent) :
         Port(name, type, parent)
     { }
 
     PortLink* OutputPort::findLink(const InputPort& to) const noexcept
     {
-        assert(parent().haveLock());
+        assert(parent.haveLock());
 
         return Port::findLink(*this, to);
     }
@@ -152,40 +130,88 @@ namespace Clypsalot
 
     PortLink* InputPort::findLink(const OutputPort& from) const noexcept
     {
-        assert(parent().haveLock());
+        assert(parent.haveLock());
 
         return Port::findLink(from, *this);
     }
 
     PortLink& linkPorts(OutputPort& output, InputPort& input)
     {
-        assert(output.parent().haveLock());
-        assert(input.parent().haveLock());
+        assert(output.parent.haveLock());
+        assert(input.parent.haveLock());
 
         LOGGER(debug, "Linking ", output, " to ", input);
 
-        auto link = output.type().makeLink(output, input);
+        auto link = output.type.makeLink(output, input);
+        std::vector<SharedObject> startObjects;
+        Finally finally([&startObjects]
+        {
+            for (auto object : startObjects)
+            {
+                LOGGER(trace, "Starting object that was paused during linking: ", *object);
+            }
+        });
+
+        for (auto object : { output.parent.shared_from_this(), input.parent.shared_from_this() })
+        {
+            if (pauseObject(object))
+            {
+                startObjects.push_back(object);
+            }
+        }
+
         output.addLink(link);
         input.addLink(link);
 
         return *link;
     }
 
+    /**
+     * @brief Unlink the Object ports.
+     * @param output The output port to unlink
+     * @param input The input port to unlink.
+     *
+     * Unlink the ports and pause and start the object if needed.
+     */
     void unlinkPorts(OutputPort& output, InputPort& input)
     {
-        assert(output.parent().haveLock());
-        assert(input.parent().haveLock());
+        assert(output.parent.haveLock());
+        assert(input.parent.haveLock());
 
         LOGGER(debug, "Unlinking ", output, " from ", input);
 
         auto outputLink = output.findLink(input);
         auto inputLink = input.findLink(output);
 
-        assert(outputLink == inputLink);
+        if (outputLink != inputLink)
+        {
+            throw RuntimeError(makeString("Can't unlink objects: inconsistent links between ", output, " and ", input));
+        }
 
         if (outputLink == nullptr)
         {
-            throw RuntimeError("Ports are not linked");
+            throw RuntimeError(makeString("Ports ", output, " and ", input, " are not linked"));
+        }
+
+        assert(outputLink->from == output);
+        assert(outputLink->to == input);
+
+        std::vector<SharedObject> startObjects;
+        Finally finally([&startObjects]
+        {
+            for (auto& object : startObjects)
+            {
+                LOGGER(debug, "Starting object that was paused for unlinking: ", *object);
+                startObject(object);
+            }
+        });
+
+        for (auto object : { output.parent.shared_from_this(), input.parent.shared_from_this() })
+        {
+            if (pauseObject(object))
+            {
+                startObjects.push_back(object);
+            }
         }
 
         output.removeLink(outputLink);
@@ -193,14 +219,27 @@ namespace Clypsalot
         delete(outputLink);
     }
 
-    std::string asString(const Port& port) noexcept
+    std::string asString(const OutputPort& port) noexcept
     {
-      return std::string(asString(port.parent()))
-              + "(" + port.type().name() + ":"
-              + port.name() + ")";
+      return std::string(asString(port.parent))
+        + "(output=" + port.type.name + ":"
+        + port.name + ")";
     }
 
-    std::ostream& operator<<(std::ostream& os, const Port& port) noexcept
+    std::ostream& operator<<(std::ostream& os, const OutputPort& port) noexcept
+    {
+        os << asString(port);
+        return os;
+    }
+
+    std::string asString(const InputPort& port) noexcept
+    {
+      return std::string(asString(port.parent))
+        + "(input=" + port.type.name + ":"
+        + port.name + ")";
+    }
+
+    std::ostream& operator<<(std::ostream& os, const InputPort& port) noexcept
     {
         os << asString(port);
         return os;

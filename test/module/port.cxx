@@ -10,47 +10,170 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <cassert>
+
 #include <clypsalot/catalog.hxx>
 #include <clypsalot/error.hxx>
+#include <clypsalot/logging.hxx>
+#include <clypsalot/macros.hxx>
+#include <clypsalot/util.hxx>
 
 #include "test/module/port.hxx"
 
 namespace Clypsalot
 {
-    const std::string TestPortType::typeName = "test";
-    const TestPortType TestPortType::portTypeSingleton = TestPortType();
+    const MTestPortType MTestPortType::singleton = MTestPortType();
+    const std::string MTestPortType::typeName = "mtest";
+    const PTestPortType PTestPortType::singleton = PTestPortType();
+    const std::string PTestPortType::typeName = "ptest";
 
-    const std::string& TestPortType::name() const noexcept
-    {
-        return typeName;
-    }
+    MTestPortType::MTestPortType() :
+        PortType(MTestPortType::typeName)
+    { }
 
-    PortLink* TestPortType::makeLink(OutputPort& from, InputPort& to) const
+    PortLink* MTestPortType::makeLink(OutputPort& from, InputPort& to) const
     {
-        const auto& ourTypeInfo = typeid(TestPortType);
-        const auto& fromType = from.type();
-        const auto& toType = to.type();
+        const auto& ourTypeInfo = typeid(MTestPortType);
+        const auto& fromType = from.type;
+        const auto& toType = to.type;
 
         if (typeid(fromType) != ourTypeInfo || typeid(toType) != ourTypeInfo)
         {
             throw TypeError("Incompatible port types when creating a link");
         }
 
-        return new TestPortLink(
-            dynamic_cast<TestOutputPort&>(from),
-            dynamic_cast<TestInputPort&>(to)
+        return new MTestPortLink(
+            dynamic_cast<MTestOutputPort&>(from),
+            dynamic_cast<MTestInputPort&>(to)
         );
     }
 
-    TestOutputPort::TestOutputPort(const std::string& name, Object& parent) :
-        OutputPort(name, TestPortType::portTypeSingleton, parent)
+    MTestOutputPort::MTestOutputPort(const std::string& name, Object& parent) :
+        OutputPort(name, MTestPortType::singleton, parent)
     { }
 
-    TestInputPort::TestInputPort(const std::string& name, Object& parent) :
-        InputPort(name, TestPortType::portTypeSingleton, parent)
+    bool MTestOutputPort::ready() const noexcept
+    {
+        assert(parent.haveLock());
+        return readyFlag;
+    }
+
+    void MTestOutputPort::setReady(const bool ready) noexcept
+    {
+        assert(parent.haveLock());
+        readyFlag = ready;
+        PORT_LOGGER(trace, "ready=", readyFlag);
+    }
+
+    MTestInputPort::MTestInputPort(const std::string& name, Object& parent) :
+        InputPort(name, MTestPortType::singleton, parent)
     { }
 
-    TestPortLink::TestPortLink(TestOutputPort& from, TestInputPort& to) :
+    bool MTestInputPort::ready() const noexcept
+    {
+        assert(parent.haveLock());
+        return readyFlag;
+    }
+
+    void MTestInputPort::setReady(const bool ready) noexcept
+    {
+        assert(parent.haveLock());
+        readyFlag = ready;
+        PORT_LOGGER(trace, "ready=", readyFlag);
+    }
+
+    MTestPortLink::MTestPortLink(MTestOutputPort& from, MTestInputPort& to) :
         PortLink(from, to)
     { }
+
+    PTestPortType::PTestPortType() :
+        PortType(PTestPortType::typeName)
+    { }
+
+    PortLink* PTestPortType::makeLink(OutputPort& from, InputPort& to) const
+    {
+        const auto& ourTypeInfo = typeid(PTestPortType);
+        const auto& fromType = from.type;
+        const auto& toType = to.type;
+
+        if (typeid(fromType) != ourTypeInfo || typeid(toType) != ourTypeInfo)
+        {
+            throw TypeError("Incompatible port types when creating a link");
+        }
+
+        return new PTestPortLink(
+            dynamic_cast<PTestOutputPort&>(from),
+            dynamic_cast<PTestInputPort&>(to)
+        );
+    }
+
+    PTestOutputPort::PTestOutputPort(const std::string& name, Object& parent) :
+        OutputPort(name, PTestPortType::singleton, parent)
+    { }
+
+    bool PTestOutputPort::ready() const noexcept
+    {
+        assert(parent.haveLock());
+
+        if (portLinks.size() == 0)
+        {
+            return false;
+        }
+
+        for (const auto baseLink : portLinks)
+        {
+            auto link = dynamic_cast<PTestPortLink*>(baseLink);
+
+            if (link->dirty())
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    PTestInputPort::PTestInputPort(const std::string& name, Object& parent) :
+        InputPort(name, PTestPortType::singleton, parent)
+    { }
+
+    bool PTestInputPort::ready() const noexcept
+    {
+        assert(parent.haveLock());
+
+        if (portLinks.size() == 0)
+        {
+            return false;
+        }
+
+        for (const auto baseLink : portLinks)
+        {
+            auto link = dynamic_cast<PTestPortLink*>(baseLink);
+
+            if (! link->dirty())
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    PTestPortLink::PTestPortLink(PTestOutputPort& from, PTestInputPort& to) :
+        PortLink(from, to)
+    { }
+
+    bool PTestPortLink::dirty() const noexcept
+    {
+        std::unique_lock lock(mutex);
+
+        return dirtyFlag;
+    }
+
+    void PTestPortLink::dirty(const bool isDirty) noexcept
+    {
+        std::unique_lock lock(mutex);
+
+        dirtyFlag = isDirty;
+    }
 }

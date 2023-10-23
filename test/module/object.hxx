@@ -19,22 +19,38 @@ namespace Clypsalot
     class TestObject : public Object
     {
         public:
-        static const std::string objectKind;
+        static const std::string kindName;
 
         static SharedObject make();
-        TestObject();
-        virtual const std::string& kind() noexcept override;
+        TestObject(const std::string& kind);
+        void publicAddProperties(const PropertyList& list);
 
         template <std::derived_from<OutputPort> T, typename... Args>
-        OutputPort& publicAddOutput(Args... args)
+        T& publicAddOutput(Args... args)
         {
-            return addOutput<T>(args...);
+            return dynamic_cast<T&>(addOutput<T>(args...));
         }
 
         template <std::derived_from<InputPort> T, typename... Args>
-        InputPort& publicAddInput(Args... args)
+        T& publicAddInput(Args... args)
         {
-            return addInput<T>(args...);
+            return dynamic_cast<T&>(addInput<T>(args...));
         }
+
+        virtual bool process() override;
+    };
+
+    class ProcessingTestObject : public TestObject
+    {
+        protected:
+        size_t* processCounterProperty = nullptr;
+        size_t* maxProcessProperty = nullptr;
+
+        public:
+        static const std::string kindName;
+
+        static SharedObject make();
+        ProcessingTestObject(const std::string& kind);
+        virtual bool process() override;
     };
 }

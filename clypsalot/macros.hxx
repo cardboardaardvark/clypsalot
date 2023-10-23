@@ -33,6 +33,9 @@
 /// sent.
 #define LLOGGER(severity, block) Clypsalot::deliverLogEvent(LOG_SOURCE, __FILE__, __LINE__, Clypsalot::LogSeverity::severity, [&]() -> std::string block)
 
+#define OBJECT_LOGGER(severity, ...) LOGGER(severity, *this, ": ", __VA_ARGS__)
+#define PORT_LOGGER(severity, ...) LOGGER(severity, *this, ": ", __VA_ARGS__)
+
 /**
  * @brief A convience macro for automatically giving the file and line data to the \ref fatalError() function.
  */

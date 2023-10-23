@@ -21,6 +21,7 @@
 
 #include <clypsalot/event.hxx>
 #include <clypsalot/forward.hxx>
+#include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 
 /// @file
@@ -36,6 +37,9 @@ namespace Clypsalot
         faulted,
         initializing,
         paused,
+        waiting,
+        scheduled,
+        executing,
         stopped,
     };
 
@@ -71,6 +75,8 @@ namespace Clypsalot
 
     class Object : public Lockable, public Eventful, public std::enable_shared_from_this<Object>
     {
+        friend void scheduleObject(Object&);
+
         ObjectState currentState = ObjectState::initializing;
 
         void state(const ObjectState newState);
@@ -78,13 +84,19 @@ namespace Clypsalot
 
         protected:
         std::condition_variable_any condVar;
+        std::map<std::string, Property> objectProperties;
         std::vector<OutputPort*> outputPorts;
         std::vector<InputPort*> inputPorts;
 
         void fault(const std::string& message);
+        virtual bool process() = 0;
         virtual void handleInit(const ObjectConfig& config);
         virtual void handleConfigure(const ObjectConfig& config);
+        Property& addProperty(const PropertyConfig& config);
+        void addProperties(const PropertyList& list);
+        size_t& propertySizeRef(const std::string& name);
         OutputPort& addOutput(OutputPort* output);
+        InputPort& addInput(InputPort* input);
 
         template <std::derived_from<OutputPort> T>
         OutputPort& addOutput(const std::string& portName)
@@ -101,8 +113,6 @@ namespace Clypsalot
                 throw;
             }
         }
-
-        InputPort& addInput(InputPort* input);
 
         template <std::derived_from<InputPort> T>
         InputPort& addInput(const std::string& portName)
@@ -122,16 +132,25 @@ namespace Clypsalot
 
         public:
         const size_t id;
+        const std::string& kind;
 
-        Object();
+        Object(const std::string& kind);
         Object(const Object&) = delete;
         virtual ~Object() noexcept;
         void operator=(const Object&) = delete;
-        virtual const std::string& kind() noexcept = 0;
         ObjectState state() const noexcept;
+        virtual bool ready() const noexcept;
+        std::map<SharedObject, bool> linkedObjects() const noexcept;
+        const std::map<std::string, Property>& properties() const noexcept;
+        bool hasProperty(const std::string& name) const noexcept;
+        Property& property(const std::string& name);
         void wait(const std::function<bool ()> tester);
         void init(const ObjectConfig& config = {});
         void configure(const ObjectConfig& config = {});
+        void start();
+        void schedule();
+        bool execute();
+        void pause();
         void stop();
         const std::vector<OutputPort*>& outputs() const noexcept;
         bool hasOutput(const size_t number) noexcept;
@@ -145,10 +164,13 @@ namespace Clypsalot
         InputPort& input(const std::string& name);
     };
 
-    bool objectIsShutdown(const Object& object) noexcept;
-    bool objectIsBusy(const Object& object) noexcept;
-    bool objectIsPreparing(const Object& object) noexcept;
-    void stopObject(Object& object);
+    bool objectIsShutdown(const ObjectState state) noexcept;
+    bool objectIsBusy(const ObjectState state) noexcept;
+    bool objectIsPreparing(const ObjectState state) noexcept;
+    bool pauseObject(const SharedObject& object);
+    void startObject(const SharedObject& object);
+    void scheduleObject(const SharedObject& object);
+    void stopObject(const SharedObject& object);
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept;
     std::string asString(const Object& object) noexcept;
     std::ostream& operator<<(std::ostream& os, const Object& object) noexcept;

@@ -22,16 +22,18 @@ TEST_MAIN_FUNCTION
 
 BOOST_AUTO_TEST_CASE(link_function)
 {
-    auto object1 = std::make_shared<TestObject>();
-    auto object2 = std::make_shared<TestObject>();
+    auto object1 = makeTestObject<TestObject>();
+    auto object2 = makeTestObject<TestObject>();
     std::unique_lock object1Lock(*object1);
     std::unique_lock object2Lock(*object2);
 
-    auto& output = object1->publicAddOutput<TestOutputPort>("output");
-    auto& input = object2->publicAddInput<TestInputPort>("input");
+    auto& output = object1->publicAddOutput<MTestOutputPort>("output");
+    auto& input = object2->publicAddInput<MTestInputPort>("input");
     BOOST_CHECK(output.links().size() == 0);
-    BOOST_CHECK(output.links().size() == 0);
+    BOOST_CHECK(input.links().size() == 0);
 
+    object1->configure();
+    object2->configure();
     auto& link = linkPorts(output, input);
     BOOST_CHECK(output.links().size() == 1);
     BOOST_CHECK(*output.links().at(0) == link);
@@ -39,17 +41,22 @@ BOOST_AUTO_TEST_CASE(link_function)
     BOOST_CHECK(*input.links().at(0) == link);
 
     unlinkPorts(output, input);
+    object1->stop();
+    object2->stop();
 }
 
 BOOST_AUTO_TEST_CASE(unlink_function)
 {
-    auto object1 = std::make_shared<TestObject>();
-    auto object2 = std::make_shared<TestObject>();
+    auto object1 = makeTestObject<TestObject>();
+    auto object2 = makeTestObject<TestObject>();
     std::unique_lock object1Lock(*object1);
     std::unique_lock object2Lock(*object2);
 
-    auto& output = object1->publicAddOutput<TestOutputPort>("output");
-    auto& input = object2->publicAddInput<TestInputPort>("input");
+    auto& output = object1->publicAddOutput<MTestOutputPort>("output");
+    auto& input = object2->publicAddInput<MTestInputPort>("input");
+
+    object1->configure();
+    object2->configure();
     linkPorts(output, input);
     BOOST_CHECK(output.links().size() == 1);
     BOOST_CHECK(input.links().size() == 1);
@@ -57,4 +64,26 @@ BOOST_AUTO_TEST_CASE(unlink_function)
     unlinkPorts(output, input);
     BOOST_CHECK(output.links().size() == 0);
     BOOST_CHECK(input.links().size() == 0);
+
+    object1->stop();
+    object2->stop();
+}
+
+BOOST_AUTO_TEST_CASE(readiness)
+{
+    auto object = makeTestObject<TestObject>();
+    std::unique_lock lock(*object);
+    auto& output = object->publicAddOutput<MTestOutputPort>("output");
+    auto& input = object->publicAddInput<MTestInputPort>("input");
+
+    object->configure();
+    BOOST_CHECK(output.ready() == false);
+    BOOST_CHECK(input.ready() == false);
+
+    output.setReady(true);
+    input.setReady(true);
+    BOOST_CHECK(output.ready() == true);
+    BOOST_CHECK(input.ready() == true);
+
+    object->stop();
 }

@@ -126,10 +126,12 @@ namespace Clypsalot
         return lockResult;
     }
 
+#ifndef NDEBUG
     bool Lockable::haveLock() const
     {
         return mutex.haveLock();
     }
+#endif
 
     /**
      * @brief Compatibility with the Lockable named requirement

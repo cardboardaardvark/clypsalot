@@ -23,16 +23,17 @@ namespace Clypsalot
 {
     struct PortType
     {
-        PortType() = default;
+        const std::string& name;
+
+        PortType(const std::string& name);
         virtual ~PortType() = default;
-        virtual const std::string& name() const noexcept = 0;
         virtual PortLink* makeLink(OutputPort& from, InputPort& to) const = 0;
     };
 
-    class PortLink : Lockable
+    struct PortLink : Lockable
     {
-        OutputPort& fromPort;
-        InputPort& toPort;
+        OutputPort& from;
+        InputPort& to;
 
         public:
         PortLink(OutputPort& from, InputPort& to);
@@ -41,30 +42,26 @@ namespace Clypsalot
         void operator=(const PortLink&) = delete;
         bool operator==(const PortLink& other);
         bool operator!=(const PortLink& other);
-        OutputPort& from() const noexcept;
-        InputPort& to() const noexcept;
     };
 
     class Port
     {
-        Object& parentObject;
-        const std::string portName;
-        const PortType& portType;
+        protected:
         std::vector<PortLink*> portLinks;
 
-        protected:
         Port(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const OutputPort& from, const InputPort& to) const noexcept;
 
         public:
+        Object& parent;
+        const std::string name;
+        const PortType& type;
+
         Port(const Port&) = delete;
         virtual ~Port();
         void operator=(const Port&) = delete;
         bool operator==(const Port& other);
         bool operator!=(const Port& other);
-        const std::string& name() const;
-        const PortType& type() const;
-        Object& parent() const;
         const std::vector<PortLink*>& links() const noexcept;
         void addLink(PortLink* link) noexcept;
         void removeLink(const PortLink* link);
@@ -75,6 +72,7 @@ namespace Clypsalot
         public:
         OutputPort(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const InputPort& to) const noexcept;
+        virtual bool ready() const noexcept = 0;
     };
 
     class InputPort : public Port
@@ -82,10 +80,13 @@ namespace Clypsalot
         public:
         InputPort(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const OutputPort& from) const noexcept;
+        virtual bool ready() const noexcept = 0;
     };
 
     PortLink& linkPorts(OutputPort& output, InputPort& input);
     void unlinkPorts(OutputPort& output, InputPort& input);
-    std::string asString(const Port& port) noexcept;
-    std::ostream& operator<<(std::ostream& os, const Port& port) noexcept;
+    std::string asString(const OutputPort& port) noexcept;
+    std::string asString(const InputPort& port) noexcept;
+    std::ostream& operator<<(std::ostream& os, const OutputPort& port) noexcept;
+    std::ostream& operator<<(std::ostream& os, const InputPort& port) noexcept;
 }

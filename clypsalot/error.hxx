@@ -37,6 +37,11 @@ namespace Clypsalot
         virtual const char* what() const noexcept override;
     };
 
+    struct ImmutableError : public Error
+    {
+        ImmutableError(const std::string& errorMessage);
+    };
+
     /**
      * @brief An exception for handling errors when using a named key.
      */
@@ -72,6 +77,16 @@ namespace Clypsalot
     struct TypeError : public Error
     {
         TypeError(const std::string& errorMessage);
+    };
+
+    struct UndefinedError : public Error
+    {
+        UndefinedError(const std::string& errorMessage);
+    };
+
+    struct ValueError : public Error
+    {
+        ValueError(const std::string& errorMessage);
     };
 
     [[noreturn]] void fatalError(const std::string& message, const char* file, const std::size_t line);

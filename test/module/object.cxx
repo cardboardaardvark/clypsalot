@@ -10,29 +10,104 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <cassert>
+
+#include <clypsalot/logging.hxx>
+#include <clypsalot/macros.hxx>
+#include <clypsalot/property.hxx>
+#include <clypsalot/util.hxx>
+
 #include "test/module/object.hxx"
 #include "test/module/port.hxx"
 
 namespace Clypsalot
 {
-    const std::string TestObject::objectKind = "Test::Object";
+    const std::string TestObject::kindName = "Test::Object";
+    const std::string ProcessingTestObject::kindName = "Test::ProcessingObject";
+    static const std::string processCounterPropertyName = "Test::Process Counter";
+    static const std::string maxProcessPropertyName = "Test::Max Process";
+    static const PropertyList processingProperties = {
+        { processCounterPropertyName, PropertyType::size, false, 0 },
+        { maxProcessPropertyName, PropertyType::size, true, nullptr },
+    };
 
     SharedObject TestObject::make()
     {
-        return std::make_shared<TestObject>();
+        return std::make_shared<TestObject>(kindName);
     }
 
-    TestObject::TestObject() :
-        Object()
+    TestObject::TestObject(const std::string& kind) :
+        Object(kind)
+    { }
+
+    void TestObject::publicAddProperties(const PropertyList& list)
+    {
+        assert(mutex.haveLock());
+
+        addProperties(list);
+    }
+
+    bool TestObject::process()
+    {
+
+        return true;
+    }
+
+    SharedObject ProcessingTestObject::make()
+    {
+        return std::make_shared<ProcessingTestObject>(kindName);
+    }
+
+    ProcessingTestObject::ProcessingTestObject(const std::string& kind) :
+        TestObject(kind)
     {
         std::unique_lock lock(*this);
 
-        addOutput<TestOutputPort>("test");
-        addInput<TestInputPort>("test");
+        addProperties(processingProperties);
+
+        processCounterProperty = &propertySizeRef(processCounterPropertyName);
+        maxProcessProperty = &propertySizeRef(maxProcessPropertyName);
+
     }
 
-    const std::string& TestObject::kind() noexcept
+    bool ProcessingTestObject::process()
     {
-        return objectKind;
+        assert(haveLock());
+
+        TestObject::process();
+
+        (*processCounterProperty)++;
+
+        LOGGER(trace, "Process counter: ", *processCounterProperty);
+
+        if (*processCounterProperty >= *maxProcessProperty)
+        {
+            LOGGER(trace, "Reached max process value: ", *maxProcessProperty);
+            stop();
+        }
+
+        for (const auto port : inputPorts)
+        {
+            for (auto baseLink : port->links())
+            {
+                auto link = dynamic_cast<PTestPortLink*>(baseLink);
+
+                assert(link->dirty());
+                link->dirty(false);
+            }
+        }
+
+        for(const auto port : outputPorts)
+        {
+            for (auto baseLink : port->links())
+            {
+                auto link = dynamic_cast<PTestPortLink*>(baseLink);
+
+                assert(! link->dirty());
+                link->dirty(true);
+            }
+        }
+
+        return true;
     }
 }

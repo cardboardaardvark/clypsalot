@@ -44,3 +44,23 @@ BOOST_AUTO_TEST_CASE(typeName_function)
     BOOST_CHECK(typeName(typeid(TestType)) == TEST_TYPE_NAME);
     BOOST_CHECK(typeName(typeid(testTypeInstance)) == TEST_TYPE_NAME);
 }
+
+BOOST_AUTO_TEST_CASE(stringConversions)
+{
+    BOOST_CHECK(stringToBool("true") == true);
+    BOOST_CHECK(stringToBool("false") == false);
+    BOOST_CHECK(stringToFloat("0") == 0.);
+    BOOST_CHECK(stringToInt("-50") == -50);
+    BOOST_CHECK(stringToSize("20") == 20);
+}
+
+BOOST_AUTO_TEST_CASE(anyConversions)
+{
+    BOOST_CHECK(anyToBool(true) == true);
+    BOOST_CHECK(anyToBool("false") == false);
+    BOOST_CHECK(anyToFloat(0.) == 0.);
+    BOOST_CHECK(anyToInt(-99) == -99);
+    BOOST_CHECK(anyToSize(101) == 101);
+    BOOST_CHECK(anyToString(std::string("foo")) == "foo");
+    BOOST_CHECK(anyToString("bar") == "bar");
+}

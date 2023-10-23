@@ -34,6 +34,10 @@ namespace Clypsalot
         return message.c_str();
     }
 
+    ImmutableError::ImmutableError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
+
     /// @cond NO_DOCUMENT
     KeyError::KeyError(const std::string& errorMessage, const std::string& keyName) :
         Error(errorMessage),
@@ -52,6 +56,14 @@ namespace Clypsalot
     { }
 
     TypeError::TypeError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
+
+    UndefinedError::UndefinedError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
+
+    ValueError::ValueError(const std::string& errorMessage) :
         Error(errorMessage)
     { }
 

@@ -16,30 +16,73 @@
 
 namespace Clypsalot
 {
-    struct TestPortType : public PortType
+    // Manual test port
+    struct MTestPortType : public PortType
     {
         static const std::string typeName;
-        static const TestPortType portTypeSingleton;
+        static const MTestPortType singleton;
 
-        virtual const std::string& name() const noexcept override;
+        MTestPortType();
         virtual PortLink* makeLink(OutputPort& from, InputPort& to) const override;
     };
 
-    class TestOutputPort : public OutputPort
+    class MTestOutputPort : public OutputPort
     {
+        bool readyFlag = false;
+
         public:
-        TestOutputPort(const std::string& name, Object& parent);
+        MTestOutputPort(const std::string& name, Object& parent);
+        virtual bool ready() const noexcept override;
+        void setReady(const bool ready) noexcept;
     };
 
-    class TestInputPort : public InputPort
+    class MTestInputPort : public InputPort
     {
+        bool readyFlag = false;
+
         public:
-        TestInputPort(const std::string& name, Object& parent);
+        MTestInputPort(const std::string& name, Object& parent);
+        virtual bool ready() const noexcept override;
+        void setReady(const bool ready) noexcept;
     };
 
-    class TestPortLink : public PortLink
+    class MTestPortLink : public PortLink
     {
         public:
-        TestPortLink(TestOutputPort& from, TestInputPort& to);
+        MTestPortLink(MTestOutputPort& from, MTestInputPort& to);
+    };
+
+    // Processing test port
+    struct PTestPortType : public PortType
+    {
+        static const std::string typeName;
+        static const PTestPortType singleton;
+
+        PTestPortType();
+        virtual PortLink* makeLink(OutputPort& from, InputPort& to) const override;
+    };
+
+    class PTestOutputPort : public OutputPort
+    {
+        public:
+        PTestOutputPort(const std::string& name, Object& parent);
+        virtual bool ready() const noexcept override;
+    };
+
+    class PTestInputPort : public InputPort
+    {
+        public:
+        PTestInputPort(const std::string& name, Object& parent);
+        virtual bool ready() const noexcept override;
+    };
+
+    class PTestPortLink : public PortLink
+    {
+        bool dirtyFlag = false;
+
+        public:
+        PTestPortLink(PTestOutputPort& from, PTestInputPort& to);
+        bool dirty() const noexcept;
+        void dirty(const bool isDirty) noexcept;
     };
 }

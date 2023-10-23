@@ -82,7 +82,9 @@ namespace Clypsalot
         ~Lockable() = default;
         void operator=(const Lockable&) = delete;
         /// @cond NO_DOCUMENT
+#ifndef NDEBUG
         bool haveLock() const;
+#endif
         void lock() const;
         void unlock() const;
         bool tryLock();
@@ -141,12 +143,16 @@ namespace Clypsalot
         ~SharedLockable() = default;
         void operator=(const SharedLockable&) = delete;
         /// @cond NO_DOCUMENT
+#ifndef NDEBUG
         bool haveLock();
+#endif
         void lock();
         void tryLock();
         void try_lock();
         void unlock();
+#ifndef NDEBUG
         bool haveSharedLock();
+#endif
         void lockShared();
         bool tryLockShared();
         bool try_lock_shared();

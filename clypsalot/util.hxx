@@ -12,6 +12,9 @@
 
 #pragma once
 
+#include <any>
+#include <filesystem>
+#include <functional>
 #include <sstream>
 #include <string>
 #include <typeinfo>
@@ -19,7 +22,36 @@
 /// @file
 namespace Clypsalot
 {
+    /**
+     * @brief Execute a std::function during destruction.
+     *
+     * This class is intended to be used to execute a std::function when an instance
+     * of it goes out ot scope. The function is stored as a reference so care must be
+     * taken to ensure that the registered function always exists alongside the instance.
+     */
+    class Finally
+    {
+        using Function = std::function<void ()>;
+
+        const Function finally;
+
+        public:
+        Finally(const Function& finally);
+        ~Finally();
+    };
+
     std::string typeName(const std::type_info& type);
+    bool anyIsStringType(const std::any& value);
+    bool anyToBool(const std::any& value);
+    float anyToFloat(const std::any& value);
+    int anyToInt(const std::any& value);
+    std::filesystem::path anyToPath(const std::any& value);
+    size_t anyToSize(const std::any& value);
+    std::string anyToString(const std::any& vaue);
+    bool stringToBool(const std::string& value);
+    float stringToFloat(const std::string& value);
+    int stringToInt(const std::string& value);
+    size_t stringToSize(const std::string& value);
 
     ///@cond NO_DOCUMENT
     template <typename Arg>
