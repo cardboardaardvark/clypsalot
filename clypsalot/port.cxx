@@ -149,6 +149,7 @@ namespace Clypsalot
             for (auto object : startObjects)
             {
                 LOGGER(trace, "Starting object that was paused during linking: ", *object);
+                object->start();
             }
         });
 

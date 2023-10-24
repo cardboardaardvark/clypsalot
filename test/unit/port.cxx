@@ -20,7 +20,7 @@ using namespace Clypsalot;
 
 TEST_MAIN_FUNCTION
 
-BOOST_AUTO_TEST_CASE(link_function)
+BOOST_AUTO_TEST_CASE(linkPorts_function)
 {
     auto object1 = makeTestObject<TestObject>();
     auto object2 = makeTestObject<TestObject>();
@@ -32,20 +32,25 @@ BOOST_AUTO_TEST_CASE(link_function)
     BOOST_CHECK(output.links().size() == 0);
     BOOST_CHECK(input.links().size() == 0);
 
-    object1->configure();
-    object2->configure();
+    object1->configure(); object1->start();
+    object2->configure(); object2->start();
+
+    BOOST_CHECK(object1->state() == ObjectState::waiting);
+    BOOST_CHECK(object2->state() == ObjectState::waiting);
     auto& link = linkPorts(output, input);
+    BOOST_CHECK(object1->state() == ObjectState::waiting);
+    BOOST_CHECK(object2->state() == ObjectState::waiting);
     BOOST_CHECK(output.links().size() == 1);
     BOOST_CHECK(*output.links().at(0) == link);
     BOOST_CHECK(input.links().size() == 1);
     BOOST_CHECK(*input.links().at(0) == link);
 
     unlinkPorts(output, input);
-    object1->stop();
-    object2->stop();
+    stopObject(object1);
+    stopObject(object2);
 }
 
-BOOST_AUTO_TEST_CASE(unlink_function)
+BOOST_AUTO_TEST_CASE(unlinkPorts_function)
 {
     auto object1 = makeTestObject<TestObject>();
     auto object2 = makeTestObject<TestObject>();
@@ -55,18 +60,23 @@ BOOST_AUTO_TEST_CASE(unlink_function)
     auto& output = object1->publicAddOutput<MTestOutputPort>("output");
     auto& input = object2->publicAddInput<MTestInputPort>("input");
 
-    object1->configure();
-    object2->configure();
+    object1->configure(); object1->start();
+    object2->configure(); object2->start();
+
     linkPorts(output, input);
     BOOST_CHECK(output.links().size() == 1);
     BOOST_CHECK(input.links().size() == 1);
 
+    BOOST_CHECK(object1->state() == ObjectState::waiting);
+    BOOST_CHECK(object2->state() == ObjectState::waiting);
     unlinkPorts(output, input);
+    BOOST_CHECK(object1->state() == ObjectState::waiting);
+    BOOST_CHECK(object2->state() == ObjectState::waiting);
     BOOST_CHECK(output.links().size() == 0);
     BOOST_CHECK(input.links().size() == 0);
 
-    object1->stop();
-    object2->stop();
+    stopObject(object1);
+    stopObject(object2);
 }
 
 BOOST_AUTO_TEST_CASE(readiness)

@@ -113,6 +113,8 @@ namespace Clypsalot
 
         const auto oldState = currentState;
 
+        OBJECT_LOGGER(trace, "state change requested: ", formatStateChange(oldState, newState));
+
         if (! validateStateChange(oldState, newState))
         {
             throw StateError(makeString("Object state change is invalid: ", formatStateChange(oldState, newState)));

@@ -38,7 +38,7 @@ include(${CLYPSALOT_CMAKE_DIR}/testing.cmake)
 
 add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror -Wfatal-errors)
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug")
+if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     # Valgrind does not understand the debug info from LLVM version 17 until version
     # 3.20 which is not available in Debian yet (not even in backports as I write this).
     add_compile_options(-gdwarf-4)
