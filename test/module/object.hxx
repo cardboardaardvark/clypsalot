@@ -21,7 +21,7 @@ namespace Clypsalot
         public:
         static const std::string kindName;
 
-        static SharedObject make();
+        static std::shared_ptr<TestObject> make();
         TestObject(const std::string& kind);
         void publicAddProperties(const PropertyList& list);
 
@@ -49,7 +49,7 @@ namespace Clypsalot
         public:
         static const std::string kindName;
 
-        static SharedObject make();
+        static std::shared_ptr<ProcessingTestObject> make();
         ProcessingTestObject(const std::string& kind);
         virtual bool process() override;
     };

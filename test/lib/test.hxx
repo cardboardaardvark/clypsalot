@@ -12,8 +12,6 @@
 
 #pragma once
 
-#include <memory>
-
 // These must preceed the include of the unit_test.hpp
 #define BOOST_TEST_NO_MAIN
 #define BOOST_TEST_ALTERNATIVE_INIT_API
@@ -32,10 +30,4 @@ namespace Clypsalot
     int runTests(int argc, char* argv[]);
     void initTesting(int argc, char* argv[]);
     bool initBoostUnitTest();
-
-    template <class T>
-    std::shared_ptr<T> makeTestObject()
-    {
-        return std::dynamic_pointer_cast<T>(T::make());
-    }
 }

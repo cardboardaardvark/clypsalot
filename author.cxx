@@ -6,29 +6,21 @@
 #include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
-#include "test/lib/test.hxx"
 #include "test/module/object.hxx"
 #include "test/module/port.hxx"
 
 using namespace Clypsalot;
 using namespace std::chrono_literals;
 
-void stateChangedHandler(const ObjectStateChangedEvent& event)
-{
-    LOGGER(info, "Object changed state: ", event);
-}
-
-struct Something : public Lockable { };
-
 int main()
 {
     logEngine().makeDestination<ConsoleDestination>(LogSeverity::trace);
     initThreadQueue(0);
 
-    auto source = makeTestObject<ProcessingTestObject>();
+    auto source = ProcessingTestObject::make();
     std::unique_lock sourceLock(*source);
     auto& output = source->publicAddOutput<PTestOutputPort>("output");
-    auto sink = makeTestObject<ProcessingTestObject>();
+    auto sink = ProcessingTestObject::make();
     std::unique_lock sinkLock(*sink);
     auto& input = sink->publicAddInput<PTestInputPort>("input");
 

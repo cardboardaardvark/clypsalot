@@ -26,27 +26,27 @@ namespace Clypsalot
         throw StateError(makeString("Operation is invalid given current object state: ", currentState));
     }
 
-    ObjectEvent::ObjectEvent(Object& sender) :
+    ObjectEvent::ObjectEvent(const SharedObject& sender) :
         Event(),
         object(sender)
     { }
 
-    ObjectFaultedEvent::ObjectFaultedEvent(Object& sender, const std::string& reason) :
+    ObjectFaultedEvent::ObjectFaultedEvent(const SharedObject& sender, const std::string& reason) :
         ObjectEvent(sender),
         message(reason)
     { }
 
-    ObjectShutdownEvent::ObjectShutdownEvent(Object& sender) :
+    ObjectShutdownEvent::ObjectShutdownEvent(const SharedObject& sender) :
         ObjectEvent(sender)
     { }
 
-    ObjectStateChangedEvent::ObjectStateChangedEvent(Object& sender, const ObjectState previous, const ObjectState current) :
+    ObjectStateChangedEvent::ObjectStateChangedEvent(const SharedObject& sender, const ObjectState previous, const ObjectState current) :
         ObjectEvent(sender),
         oldState(previous),
         newState(current)
     { }
 
-    ObjectStoppedEvent::ObjectStoppedEvent(Object& sender) :
+    ObjectStoppedEvent::ObjectStoppedEvent(const SharedObject& sender) :
         ObjectEvent(sender)
     { }
 
@@ -62,15 +62,7 @@ namespace Clypsalot
     }
 
     /**
-     * FIXME It is not currently possible to send an ObjectEvent from inside the destructor because
-     * the shared_ptr is already gone so when shared_from_this() is called during event construction
-     * so shared_from_this() throws a std::bad_weak_ptr exception. Because events could be queued
-     * or sent to other threads the object attribute on the event can't safely be a reference.
-     *
-     * This is a nasty race condition as other things may rely on the ObjectShutdownEvent to track
-     * an object. The temporary workaround is to require the object to be shutdown prior to destruction.
-     *
-     * Another nasty problem is related to links to other objects. Links use object references so
+     * A nasty problem is related to links to other objects. Links use object references so
      * they must be removed from the other objects prior to destruction. Locking the mutex of the
      * object being destroyed or any other object from inside the destructor is highly non-optimal
      * because of the entirely non-obvious deadlock possibilities since the locking operation is
@@ -85,6 +77,8 @@ namespace Clypsalot
     {
         OBJECT_LOGGER(debug, "Destroying object");
 
+        // This should never happen as long as the Object is owned by a shared_ptr that was
+        // constructed by the _makeObject<T>() function.
         if (! objectIsShutdown(currentState))
         {
            FATAL_ERROR(makeString("Attempt to destroy ", *this, " when it was not shutdown"));
@@ -122,7 +116,7 @@ namespace Clypsalot
 
         currentState = newState;
         OBJECT_LOGGER(trace, "Changed state: ", formatStateChange(oldState, newState));
-        events->send(ObjectStateChangedEvent(*this, oldState, currentState));
+        events->send(ObjectStateChangedEvent(shared_from_this(), oldState, currentState));
         condVar.notify_all();
     }
 
@@ -192,23 +186,34 @@ namespace Clypsalot
         condVar.wait(mutex, tester);
     }
 
-    void Object::fault(const std::string& message)
+    void Object::fault(const std::string& message) noexcept
     {
         assert(mutex.haveLock());
 
+        if (currentState == ObjectState::faulted)
+        {
+            OBJECT_LOGGER(debug, "fault() called for object that is already faulted");
+            return;
+        }
+
+        // Explicitly set the state to ensure the object always winds up in the faulted
+        // state so if something goes wrong in here at least the state will be correct.
+        currentState = ObjectState::faulted;
+
         try {
             OBJECT_LOGGER(error, "Faulted: ", message);
+            // Still call the state change method so the normal state change workflow happens
             state(ObjectState::faulted);
-            events->send(ObjectFaultedEvent(*this, message));
+            events->send(ObjectFaultedEvent(shared_from_this(), message));
             shutdown();
         } catch (std::exception& e)
         {
-            FATAL_ERROR(makeString("Error encountered in fault handler: ", e.what()));
+            OBJECT_LOGGER(error, "Exception encountered in fault handler: ", e.what());
             throw;
         }
         catch (...)
         {
-            FATAL_ERROR("Unknown exception in fault handler");
+            OBJECT_LOGGER(error, "Unknown exception in fault handler");
         }
     }
 
@@ -454,7 +459,7 @@ namespace Clypsalot
         try
         {
             state(ObjectState::stopped);
-            events->send(ObjectStoppedEvent(*this));
+            events->send(ObjectStoppedEvent(shared_from_this()));
             shutdown();
         }
         catch (std::exception& e)
@@ -482,7 +487,7 @@ namespace Clypsalot
                 objectStateError(currentState);
             }
 
-            events->send(ObjectShutdownEvent(*this));
+            events->send(ObjectShutdownEvent(shared_from_this()));
         }
         catch (std::exception& e)
         {
@@ -787,15 +792,9 @@ namespace Clypsalot
 
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept
     {
-        // Object can always move into a faulted state unless it's already faulted which
-        // makes no sense.
+        // Object can always move into a faulted state
         if (newState == ObjectState::faulted)
         {
-            if (oldState == ObjectState::faulted)
-            {
-                return false;
-            }
-
             return true;
         }
 

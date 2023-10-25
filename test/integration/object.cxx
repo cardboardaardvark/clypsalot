@@ -22,9 +22,28 @@ using namespace Clypsalot;
 
 TEST_MAIN_FUNCTION
 
-BOOST_AUTO_TEST_CASE(readiness)
+BOOST_AUTO_TEST_CASE(Object_destruction_event)
 {
-    auto object = makeTestObject<TestObject>();
+    static bool handlerExecuted = false;
+    std::shared_ptr<Subscription> subscription;
+
+    BOOST_CHECK(handlerExecuted == false);
+    {
+        auto object = TestObject::make();
+        std::unique_lock lock(*object);
+
+        BOOST_CHECK(object->state() == ObjectState::initializing);
+        subscription = object->subscribe<ObjectStoppedEvent>([](const ObjectEvent& event) {
+            handlerExecuted = true;
+            BOOST_CHECK(event.object->state() == ObjectState::stopped);
+        });
+    }
+    BOOST_CHECK(handlerExecuted == true);
+}
+
+BOOST_AUTO_TEST_CASE(Object_readiness)
+{
+    auto object = TestObject::make();
     std::unique_lock lock(*object);
     auto& input1 = object->publicAddInput<MTestInputPort>("input 1");
     auto& input2 = object->publicAddInput<MTestInputPort>("input 2");

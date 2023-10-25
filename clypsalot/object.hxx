@@ -24,6 +24,10 @@
 #include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 
+#include <clypsalot/logging.hxx>
+#include <clypsalot/macros.hxx>
+#include <clypsalot/util.hxx>
+
 /// @file
 namespace Clypsalot
 {
@@ -45,19 +49,19 @@ namespace Clypsalot
 
     struct ObjectEvent : Event
     {
-        Object& object;
-        ObjectEvent(Object& sender);
+        SharedObject object;
+        ObjectEvent(const SharedObject& sender);
     };
 
     struct ObjectFaultedEvent : ObjectEvent
     {
         const std::string message;
-        ObjectFaultedEvent(Object& sender, const std::string& reason);
+        ObjectFaultedEvent(const SharedObject& sender, const std::string& reason);
     };
 
     struct ObjectShutdownEvent : ObjectEvent
     {
-        ObjectShutdownEvent(Object& sender);
+        ObjectShutdownEvent(const SharedObject& sender);
     };
 
     struct ObjectStateChangedEvent : public ObjectEvent
@@ -65,12 +69,12 @@ namespace Clypsalot
         ObjectState oldState;
         ObjectState newState;
 
-        ObjectStateChangedEvent(Object& sender, const ObjectState previous, const ObjectState current);
+        ObjectStateChangedEvent(const SharedObject&, const ObjectState previous, const ObjectState current);
     };
 
     struct ObjectStoppedEvent : public ObjectEvent
     {
-        ObjectStoppedEvent(Object& sender);
+        ObjectStoppedEvent(const SharedObject& sender);
     };
 
     class Object : public Lockable, public Eventful, public std::enable_shared_from_this<Object>
@@ -88,7 +92,7 @@ namespace Clypsalot
         std::vector<OutputPort*> outputPorts;
         std::vector<InputPort*> inputPorts;
 
-        void fault(const std::string& message);
+        void fault(const std::string& message) noexcept;
         virtual bool process() = 0;
         virtual void handleInit(const ObjectConfig& config);
         virtual void handleConfigure(const ObjectConfig& config);
@@ -163,6 +167,66 @@ namespace Clypsalot
         InputPort& input(const size_t number);
         InputPort& input(const std::string& name);
     };
+
+    // Stop the object when the shared_ptr goes out of scope if the object is not
+    // already shutdown so any subscriptions to the state change, stopped and shutdown
+    // events receive the events they'll expect from an object even if the object user did
+    // not explicitly shut it down before destruction.
+    //
+    // This happens in a deleter instead of the destructor because there is no way to
+    // get a valid shared_ptr from shared_from_this() in the destructor and creating a new
+    // shared_ptr in the destructor would cause the pointer to get deleted twice.
+    template <std::derived_from<Object> T>
+    void _destroyObject(T* object) noexcept
+    {
+        LOGGER(trace, "Object deleter invoked for ", *object);
+        std::unique_lock lock(*object);
+        bool madeSharedObject = false;
+
+        try
+        {
+            if (! objectIsShutdown(object->state()))
+            {
+               // By the time the deleter is called the original owning shared_ptr has already
+               // given up ownership of the object so it is safe to create a new owning shared_ptr.
+               // The shared_ptr has to be created here so shared_from_this() works after calling
+               // object->stop() which will cause shared_from_this() to be called many times as a
+               // part of sending the events.
+               //
+               // The deleter used in makeObject() is not used here to avoid a potential infinite
+               // loop.
+               std::shared_ptr<T> tempSharedObject(object);
+               madeSharedObject = true;
+               stopObject(object->shared_from_this());
+               lock.unlock();
+               return;
+            }
+        }
+        catch (const std::exception& e)
+        {
+            LOGGER(error, "Caught exception when destroying object ", *object, ": ", e.what());
+        }
+        catch (...)
+        {
+            LOGGER(error, "Caught unknown exception when destroying object ", *object);
+        }
+
+        lock.unlock();
+
+        if (! madeSharedObject)
+        {
+            LOGGER(debug, "_destroyObject(): calling delete() on object pointer");
+            delete object;
+        }
+    }
+
+    // This function is intended to be called by the per object static make() method
+    // which passes in any required arguments that specific object class has.
+    template <std::derived_from<Object> T = Object, typename... Args>
+    std::shared_ptr<T> _makeObject(Args&... args)
+    {
+        return std::shared_ptr<T>(new T(args...), _destroyObject<T>);
+    }
 
     bool objectIsShutdown(const ObjectState state) noexcept;
     bool objectIsBusy(const ObjectState state) noexcept;

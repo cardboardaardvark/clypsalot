@@ -31,9 +31,9 @@ namespace Clypsalot
         { maxProcessPropertyName, PropertyType::size, true, nullptr },
     };
 
-    SharedObject TestObject::make()
+    std::shared_ptr<TestObject> TestObject::make()
     {
-        return std::make_shared<TestObject>(kindName);
+        return _makeObject<TestObject>(kindName);
     }
 
     TestObject::TestObject(const std::string& kind) :
@@ -53,9 +53,9 @@ namespace Clypsalot
         return true;
     }
 
-    SharedObject ProcessingTestObject::make()
+    std::shared_ptr<ProcessingTestObject> ProcessingTestObject::make()
     {
-        return std::make_shared<ProcessingTestObject>(kindName);
+        return _makeObject<ProcessingTestObject>(kindName);
     }
 
     ProcessingTestObject::ProcessingTestObject(const std::string& kind) :

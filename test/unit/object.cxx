@@ -26,9 +26,9 @@ static PropertyList propertyList = {
     { "property 2", PropertyType::string, false, "initial value" },
 };
 
-BOOST_AUTO_TEST_CASE(objectProperties)
+BOOST_AUTO_TEST_CASE(Object_properties)
 {
-    auto object = makeTestObject<TestObject>();
+    auto object = TestObject::make();
     std::unique_lock lock(*object);
     const auto& properties = object->properties();
     size_t numChecked = 0;
