@@ -12,6 +12,7 @@
 
 #include <boost/test/unit_test.hpp>
 
+#include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/util.hxx>
@@ -21,6 +22,32 @@
 
 namespace Clypsalot
 {
+    struct LogCounterDestination : LogDestination
+    {
+        LogCounterDestination() :
+            LogDestination(LogSeverity::warn)
+        { }
+
+        virtual void handleLogEvent(const LogEvent&) noexcept override
+        {
+            severeLogEvents++;
+        }
+    };
+
+    Fixture::Fixture()
+    {
+        severeLogEvents = 0;
+    }
+
+    Fixture::~Fixture()
+    {
+        if (severeLogEvents > 0)
+        {
+            // TODO Find a way to handle this cleaner using the Boost framework
+            FATAL_ERROR(makeString("Severe log events detected: ", severeLogEvents));
+        }
+    }
+
     int runTests(int argc, char* argv[])
     {
         auto result = boost::unit_test::unit_test_main(initBoostUnitTest, argc, argv);
@@ -29,11 +56,12 @@ namespace Clypsalot
 
     void initTesting(int argc, char* argv[])
     {
-        auto& destination = logEngine().makeDestination<ConsoleDestination>(LogSeverity::info);
+        auto& consoleDestination = logEngine().makeDestination<ConsoleDestination>(LogSeverity::info);
+        logEngine().makeDestination<LogCounterDestination>();
 
         if (argc == 2)
         {
-            destination.severity(logSeverity(argv[1]));
+            consoleDestination.severity(logSeverity(argv[1]));
         }
 
         importModule(testModuleDescriptor());

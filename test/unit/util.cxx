@@ -29,7 +29,7 @@ std::ostream& operator<<(std::ostream& os, const TestType) noexcept
     return os;
 }
 
-BOOST_AUTO_TEST_CASE(makeString_function)
+TEST_CASE(makeString_function)
 {
     BOOST_CHECK(typeid(makeString("")) == typeid(std::string));
     BOOST_CHECK(makeString("A string") == "A string");
@@ -38,14 +38,14 @@ BOOST_AUTO_TEST_CASE(makeString_function)
     BOOST_CHECK(makeString(0.0) == "0");
 }
 
-BOOST_AUTO_TEST_CASE(typeName_function)
+TEST_CASE(typeName_function)
 {
     const TestType testTypeInstance;
     BOOST_CHECK(typeName(typeid(TestType)) == TEST_TYPE_NAME);
     BOOST_CHECK(typeName(typeid(testTypeInstance)) == TEST_TYPE_NAME);
 }
 
-BOOST_AUTO_TEST_CASE(stringConversions)
+TEST_CASE(stringConversions)
 {
     BOOST_CHECK(stringToBool("true") == true);
     BOOST_CHECK(stringToBool("false") == false);
@@ -54,7 +54,7 @@ BOOST_AUTO_TEST_CASE(stringConversions)
     BOOST_CHECK(stringToSize("20") == 20);
 }
 
-BOOST_AUTO_TEST_CASE(anyConversions)
+TEST_CASE(anyConversions)
 {
     BOOST_CHECK(anyToBool(true) == true);
     BOOST_CHECK(anyToBool("false") == false);

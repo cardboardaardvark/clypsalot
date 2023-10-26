@@ -22,7 +22,7 @@ using namespace Clypsalot;
 
 TEST_MAIN_FUNCTION
 
-BOOST_AUTO_TEST_CASE(Object_destruction_event)
+TEST_CASE(Object_destruction_event)
 {
     static bool handlerExecuted = false;
     std::shared_ptr<Subscription> subscription;
@@ -41,7 +41,7 @@ BOOST_AUTO_TEST_CASE(Object_destruction_event)
     BOOST_CHECK(handlerExecuted == true);
 }
 
-BOOST_AUTO_TEST_CASE(Object_readiness)
+TEST_CASE(Object_readiness)
 {
     auto object = TestObject::make();
     std::unique_lock lock(*object);

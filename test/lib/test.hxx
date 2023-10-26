@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <atomic>
+
 // These must preceed the include of the unit_test.hpp
 #define BOOST_TEST_NO_MAIN
 #define BOOST_TEST_ALTERNATIVE_INIT_API
@@ -22,11 +24,20 @@
 
 #include <boost/test/unit_test.hpp>
 
-#define TEST_MAIN_FUNCTION int main(int argc, char* argv[]) { return runTests(argc, argv); }
+#define TEST_MAIN_FUNCTION int main(int argc, char* argv[]) { return Clypsalot::runTests(argc, argv); }
 #define TEST_OBJECT_KIND "Test::Object"
+#define TEST_CASE(name) BOOST_FIXTURE_TEST_CASE(name, Fixture)
 
 namespace Clypsalot
 {
+    std::atomic_size_t severeLogEvents = ATOMIC_VAR_INIT(0);
+
+    struct Fixture
+    {
+        Fixture();
+        ~Fixture();
+    };
+
     int runTests(int argc, char* argv[]);
     void initTesting(int argc, char* argv[]);
     bool initBoostUnitTest();

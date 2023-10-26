@@ -20,7 +20,7 @@ using namespace Clypsalot;
 
 TEST_MAIN_FUNCTION
 
-BOOST_AUTO_TEST_CASE(linkPorts_function)
+TEST_CASE(linkPorts_function)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
@@ -50,7 +50,7 @@ BOOST_AUTO_TEST_CASE(linkPorts_function)
     stopObject(object2);
 }
 
-BOOST_AUTO_TEST_CASE(unlinkPorts_function)
+TEST_CASE(unlinkPorts_function)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
@@ -79,7 +79,7 @@ BOOST_AUTO_TEST_CASE(unlinkPorts_function)
     stopObject(object2);
 }
 
-BOOST_AUTO_TEST_CASE(readiness)
+TEST_CASE(readiness)
 {
     auto object = TestObject::make();
     std::unique_lock lock(*object);

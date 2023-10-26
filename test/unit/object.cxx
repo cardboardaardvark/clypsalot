@@ -26,7 +26,7 @@ static PropertyList propertyList = {
     { "property 2", PropertyType::string, false, "initial value" },
 };
 
-BOOST_AUTO_TEST_CASE(Object_properties)
+TEST_CASE(Object_properties)
 {
     auto object = TestObject::make();
     std::unique_lock lock(*object);
