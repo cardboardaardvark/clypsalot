@@ -43,4 +43,4 @@
 
 // TODO There has got to be a better way to avoid having to specify the return type
 // when invoking threadQueueCall()
-#define THREAD_CALL(lambda) threadQueueCall(std::function(lambda))
+#define THREAD_CALL(lambda) threadQueueCall(std::function([] lambda))

@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <cassert>
 #include <condition_variable>
 #include <functional>
 #include <future>
@@ -167,8 +168,11 @@ namespace Clypsalot
         using JobType = std::function<void ()>;
 
         private:
+        thread_local static bool insideQueueFlag;
+
         size_t numThreads = 0;
         std::condition_variable_any condVar;
+        std::condition_variable_any workerCondVar;
         std::vector<std::thread> workers;
         std::vector<std::thread::id> joinQueue;
         std::list<JobType> jobs;
@@ -181,6 +185,7 @@ namespace Clypsalot
         ThreadQueue(const ThreadQueue&) = delete;
         ~ThreadQueue();
         void operator=(const ThreadQueue&) = delete;
+        bool insideQueue() const noexcept;
         size_t threads();
         void threads(const size_t threads);
         void post(const JobType& job);
@@ -188,6 +193,8 @@ namespace Clypsalot
         template <typename T>
         T call(const std::function<T ()>& procedure)
         {
+            assert(! insideQueueFlag);
+
             std::promise<T> promise;
 
             post([&promise, &procedure]
@@ -208,6 +215,8 @@ namespace Clypsalot
         template <>
         void call(const std::function<void ()>& procedure)
         {
+            assert(! insideQueueFlag);
+
             std::promise<void> promise;
 
             post([&promise, &procedure]
@@ -235,6 +244,11 @@ namespace Clypsalot
     template <typename T>
     T threadQueueCall(const std::function<T ()>& job)
     {
+        if (threadQueue().insideQueue())
+        {
+            return job();
+        }
+
         return threadQueue().call<T>(job);
     }
 }

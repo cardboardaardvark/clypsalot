@@ -15,6 +15,7 @@
 #include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
 #include "test/lib/test.hxx"
@@ -22,6 +23,19 @@
 
 namespace Clypsalot
 {
+    struct GlobalFixture
+    {
+        GlobalFixture()
+        {
+            initThreadQueue(0);
+        }
+
+        ~GlobalFixture()
+        {
+            shutdownThreadQueue();
+        }
+    };
+
     struct LogCounterDestination : LogDestination
     {
         LogCounterDestination() :
@@ -34,12 +48,12 @@ namespace Clypsalot
         }
     };
 
-    Fixture::Fixture()
+    TestCaseFixture::TestCaseFixture()
     {
         severeLogEvents = 0;
     }
 
-    Fixture::~Fixture()
+    TestCaseFixture::~TestCaseFixture()
     {
         if (severeLogEvents > 0)
         {
@@ -54,8 +68,11 @@ namespace Clypsalot
         return result;
     }
 
-    void initTesting(int argc, char* argv[])
+    bool initBoostUnitTest()
     {
+        auto argc = boost::unit_test::framework::master_test_suite().argc;
+        auto argv = boost::unit_test::framework::master_test_suite().argv;
+
         auto& consoleDestination = logEngine().makeDestination<ConsoleDestination>(LogSeverity::info);
         logEngine().makeDestination<LogCounterDestination>();
 
@@ -65,15 +82,11 @@ namespace Clypsalot
         }
 
         importModule(testModuleDescriptor());
+
+        BOOST_TEST_GLOBAL_FIXTURE(GlobalFixture);
+
         LOGGER(debug, "Test environment is initialized");
-    }
 
-    bool initBoostUnitTest()
-    {
-        auto argc = boost::unit_test::framework::master_test_suite().argc;
-        auto argv = boost::unit_test::framework::master_test_suite().argv;
-
-        initTesting(argc, argv);
         return true;
     }
 }

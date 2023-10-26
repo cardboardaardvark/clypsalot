@@ -6,6 +6,7 @@
 #include <clypsalot/macros.hxx>
 #include <clypsalot/object.hxx>
 #include <clypsalot/port.hxx>
+#include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
 /// @file

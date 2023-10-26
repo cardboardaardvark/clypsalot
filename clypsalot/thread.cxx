@@ -23,6 +23,7 @@ namespace Clypsalot
 {
     static ThreadQueue* threadQueueSingleton = nullptr;
     static Mutex threadQueueSingletonMutex;
+    thread_local bool ThreadQueue::insideQueueFlag = false;
 
     bool DebugMutex::_locked() const
     {
@@ -402,10 +403,12 @@ namespace Clypsalot
 
         LOGGER(debug, "A new worker thread is born");
 
+        ThreadQueue::insideQueueFlag = true;
+
         while(true)
         {
             LOGGER(trace, "Worker thread is starting a loop iteration");
-            condVar.wait(lock, [&]
+            workerCondVar.wait(lock, [&]
             {
                 if (jobs.size() > 0)
                 {
@@ -448,6 +451,11 @@ namespace Clypsalot
         }
     }
 
+    bool ThreadQueue::insideQueue() const noexcept
+    {
+        return insideQueueFlag;
+    }
+
     size_t ThreadQueue::threads()
     {
         std::unique_lock lock(mutex);
@@ -475,7 +483,7 @@ namespace Clypsalot
         }
         else if (workers.size() > numThreads)
         {
-            condVar.notify_all();
+            workerCondVar.notify_all();
 
             condVar.wait(mutex, [&] { return workers.size() - joinQueue.size() == numThreads; });
             assert(workers.size() - joinQueue.size() == numThreads);
@@ -493,7 +501,6 @@ namespace Clypsalot
                     }
                     else
                     {
-                        LOGGER(trace, "No need to join thread ", thread->get_id());
                         thread++;
                     }
                 }
@@ -520,7 +527,7 @@ namespace Clypsalot
         // TODO Until more condition variables are added to handle the case of removing threads
         // all waiting threads need to be notified because more threads could be waiting
         // on the condition variable than just threads waiting for a job.
-        condVar.notify_all();
+        workerCondVar.notify_one();
         LOGGER(trace, "Added job to thread queue; jobs=", jobs.size());
     }
 

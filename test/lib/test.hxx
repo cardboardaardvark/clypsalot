@@ -26,19 +26,18 @@
 
 #define TEST_MAIN_FUNCTION int main(int argc, char* argv[]) { return Clypsalot::runTests(argc, argv); }
 #define TEST_OBJECT_KIND "Test::Object"
-#define TEST_CASE(name) BOOST_FIXTURE_TEST_CASE(name, Fixture)
+#define TEST_CASE(name) BOOST_FIXTURE_TEST_CASE(name, Clypsalot::TestCaseFixture)
 
 namespace Clypsalot
 {
     std::atomic_size_t severeLogEvents = ATOMIC_VAR_INIT(0);
 
-    struct Fixture
+    struct TestCaseFixture
     {
-        Fixture();
-        ~Fixture();
+        TestCaseFixture();
+        ~TestCaseFixture();
     };
 
     int runTests(int argc, char* argv[]);
-    void initTesting(int argc, char* argv[]);
     bool initBoostUnitTest();
 }
