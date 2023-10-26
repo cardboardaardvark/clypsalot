@@ -44,13 +44,9 @@ TEST_CASE(linkPorts_function)
     BOOST_CHECK(*output.links().at(0) == link);
     BOOST_CHECK(input.links().size() == 1);
     BOOST_CHECK(*input.links().at(0) == link);
-
-    unlinkPorts(output, input);
-    stopObject(object1);
-    stopObject(object2);
 }
 
-TEST_CASE(unlinkPorts_function)
+TEST_CASE(unlinkPorts_function_single)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
@@ -74,9 +70,70 @@ TEST_CASE(unlinkPorts_function)
     BOOST_CHECK(object2->state() == ObjectState::waiting);
     BOOST_CHECK(output.links().size() == 0);
     BOOST_CHECK(input.links().size() == 0);
+}
 
-    stopObject(object1);
-    stopObject(object2);
+TEST_CASE(unlinkPorts_function_list)
+{
+    auto source = TestObject::make();
+    auto sink = TestObject::make();
+    std::vector<SharedObject> objects;
+    std::vector<std::unique_lock<Object>> locks;
+    std::vector<Port*> ports;
+
+    objects.push_back(source);
+    objects.push_back(sink);
+
+    for (const auto& object : objects)
+    {
+        locks.emplace_back(*object);
+    }
+
+    auto& output1 = source->publicAddOutput<MTestOutputPort>("output1");
+    auto& output2 = source->publicAddOutput<MTestOutputPort>("output2");
+    auto& input1 = sink->publicAddInput<MTestInputPort>("input1");
+    auto& input2 = sink->publicAddInput<MTestInputPort>("input2");
+
+    ports.push_back(&output1);
+    ports.push_back(&output2);
+    ports.push_back(&input1);
+    ports.push_back(&input2);
+
+    for (const auto& object : objects)
+    {
+        object->configure();
+        object->start();
+
+        BOOST_CHECK(object->state() == ObjectState::waiting);
+    }
+
+    for (const auto port : ports)
+    {
+        BOOST_CHECK(port->links().size() == 0);
+    }
+
+    linkPorts(output1, input1);
+    linkPorts(output2, input2);
+
+    for (const auto port : ports)
+    {
+        BOOST_CHECK(port->links().size() == 1);
+    }
+
+    unlinkPorts(
+    {
+        { output1, input1 },
+        { output2, input2 },
+    });
+
+    for (const auto port : ports)
+    {
+        BOOST_CHECK(port->links().size() == 0);
+    }
+
+    for (const auto& object : objects)
+    {
+        BOOST_CHECK(object->state() == ObjectState::waiting);
+    }
 }
 
 TEST_CASE(readiness)
@@ -94,6 +151,4 @@ TEST_CASE(readiness)
     input.setReady(true);
     BOOST_CHECK(output.ready() == true);
     BOOST_CHECK(input.ready() == true);
-
-    object->stop();
 }

@@ -85,6 +85,7 @@ namespace Clypsalot
 
     PortLink& linkPorts(OutputPort& output, InputPort& input);
     void unlinkPorts(OutputPort& output, InputPort& input);
+    void unlinkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     std::string asString(const OutputPort& port) noexcept;
     std::string asString(const InputPort& port) noexcept;
     std::ostream& operator<<(std::ostream& os, const OutputPort& port) noexcept;

@@ -154,17 +154,16 @@ namespace Clypsalot
         return true;
     }
 
-    std::map<SharedObject, bool> Object::linkedObjects() const noexcept
+    std::vector<PortLink*> Object::links() const noexcept
     {
         assert(haveLock());
-
-        std::map<SharedObject, bool> objects;
+        std::vector<PortLink*> allLinks;
 
         for (const auto port : outputPorts)
         {
             for (const auto link : port->links())
             {
-                objects[link->to.parent.shared_from_this()] = true;
+                allLinks.push_back(link);
             }
         }
 
@@ -172,11 +171,49 @@ namespace Clypsalot
         {
             for (const auto link : port->links())
             {
-                objects[link->from.parent.shared_from_this()] = true;
+                allLinks.push_back(link);
             }
         }
 
-        return objects;
+        return allLinks;
+    }
+
+    std::vector<SharedObject> Object::linkedObjects() const noexcept
+    {
+        assert(haveLock());
+
+        std::map<SharedObject, bool> seenObjects;
+        std::vector<SharedObject> linkedObjects;
+
+        for (const auto port : outputPorts)
+        {
+            for (const auto link : port->links())
+            {
+                auto toParent = link->to.parent.shared_from_this();
+
+                if (! seenObjects.contains(toParent))
+                {
+                    seenObjects[toParent] = true;
+                    linkedObjects.push_back(toParent);
+                }
+            }
+        }
+
+        for (const auto port : inputPorts)
+        {
+            for (const auto link : port->links())
+            {
+                auto fromParent = link->from.parent.shared_from_this();
+
+                if (! seenObjects.contains(fromParent))
+                {
+                    seenObjects[fromParent] = true;
+                    linkedObjects.push_back(fromParent);
+                }
+            }
+        }
+
+        return linkedObjects;
     }
 
     void Object::wait(const std::function<bool ()> tester)
@@ -759,7 +796,7 @@ namespace Clypsalot
             auto checkObjects = object->linkedObjects();
             lock.unlock();
 
-            for (const auto& [check, _] : checkObjects)
+            for (const auto& check : checkObjects)
             {
                 lock = std::unique_lock(*check);
 

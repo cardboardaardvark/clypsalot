@@ -209,7 +209,7 @@ namespace Clypsalot
 
         for (auto object : { output.parent.shared_from_this(), input.parent.shared_from_this() })
         {
-            if (pauseObject(object))
+            if (! objectIsShutdown(object->state()) && pauseObject(object))
             {
                 startObjects.push_back(object);
             }
@@ -218,6 +218,60 @@ namespace Clypsalot
         output.removeLink(outputLink);
         input.removeLink(outputLink);
         delete(outputLink);
+    }
+
+    /**
+     * @brief Atomically unlink a list of ports
+     */
+    void unlinkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList)
+    {
+        std::vector<std::pair<OutputPort&, InputPort&>> didUnlink;
+        bool needRelink = true;
+        std::vector<SharedObject> startObjects;
+        std::map<SharedObject, bool> seenObject;
+        Finally finally([&needRelink, &didUnlink, &startObjects] {
+            if (needRelink)
+            {
+                for (const auto& ports : didUnlink)
+                {
+                    linkPorts(ports.first, ports.second);
+                }
+            }
+
+            for (const auto& object : startObjects)
+            {
+                object->start();
+            }
+        });
+
+        didUnlink.reserve(portList.size());
+
+        for (const auto& ports : portList)
+        {
+            auto fromParent = ports.first.parent.shared_from_this();
+            auto toParent = ports.second.parent.shared_from_this();
+
+            assert(fromParent->haveLock());
+            assert(toParent->haveLock());
+
+            for (const auto& object : { fromParent, toParent })
+            {
+                if (! seenObject.contains(object))
+                {
+                    seenObject[object] = true;
+
+                    if (! objectIsShutdown(object->state()) && pauseObject(object))
+                    {
+                        startObjects.push_back(object);
+                    }
+                }
+            }
+
+            unlinkPorts(ports.first, ports.second);
+            didUnlink.push_back(ports);
+        }
+
+        needRelink = false;
     }
 
     std::string asString(const OutputPort& port) noexcept

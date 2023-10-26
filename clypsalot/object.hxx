@@ -21,6 +21,7 @@
 
 #include <clypsalot/event.hxx>
 #include <clypsalot/forward.hxx>
+#include <clypsalot/port.hxx>
 #include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 
@@ -144,7 +145,8 @@ namespace Clypsalot
         void operator=(const Object&) = delete;
         ObjectState state() const noexcept;
         virtual bool ready() const noexcept;
-        std::map<SharedObject, bool> linkedObjects() const noexcept;
+        std::vector<PortLink*> links() const noexcept;
+        std::vector<SharedObject> linkedObjects() const noexcept;
         const std::map<std::string, Property>& properties() const noexcept;
         bool hasProperty(const std::string& name) const noexcept;
         Property& property(const std::string& name);
@@ -180,26 +182,52 @@ namespace Clypsalot
     void _destroyObject(T* object) noexcept
     {
         LOGGER(trace, "Object deleter invoked for ", *object);
-        std::unique_lock lock(*object);
-        bool madeSharedObject = false;
+        // By the time this deleter is called the original owning shared_ptr has already
+        // given up ownership of the object so it is safe to create a new owning shared_ptr.
+        // The shared_ptr has to be created here so shared_from_this() works after calling
+        // object->stop() which will cause shared_from_this() to be called many times as a
+        // part of sending the events.
+        std::shared_ptr<T> resurrectedObject;
 
         try
         {
+            std::unique_lock lock(*object);
+
             if (! objectIsShutdown(object->state()))
             {
-               // By the time the deleter is called the original owning shared_ptr has already
-               // given up ownership of the object so it is safe to create a new owning shared_ptr.
-               // The shared_ptr has to be created here so shared_from_this() works after calling
-               // object->stop() which will cause shared_from_this() to be called many times as a
-               // part of sending the events.
-               //
-               // The deleter used in makeObject() is not used here to avoid a potential infinite
-               // loop.
-               std::shared_ptr<T> tempSharedObject(object);
-               madeSharedObject = true;
-               stopObject(object->shared_from_this());
-               lock.unlock();
-               return;
+                LOGGER(debug, "Shutting down object in object deleter: ", *object);
+
+                resurrectedObject = std::shared_ptr<T>(object);
+                stopObject(object->shared_from_this());
+            }
+
+            auto links = object->links();
+
+            if (links.size() > 0)
+            {
+                LOGGER(debug, "Unlinking object in object deleter: ", *object);
+
+                if (! resurrectedObject) resurrectedObject = std::shared_ptr<T>(object);
+
+                auto linkedObjects = object->linkedObjects();
+                std::vector<std::unique_lock<Object>> locks;
+                std::vector<std::pair<OutputPort&, InputPort&>> ports;
+
+                locks.reserve(linkedObjects.size());
+                ports.reserve(links.size());
+
+                for (const auto link : links)
+                {
+                    ports.emplace_back(link->from, link->to);
+                }
+
+                for (const auto& linked : linkedObjects)
+                {
+                    LOGGER(debug, "Getting lock on ", *linked);
+                    locks.emplace_back(*linked);
+                }
+
+                unlinkPorts(ports);
             }
         }
         catch (const std::exception& e)
@@ -211,9 +239,8 @@ namespace Clypsalot
             LOGGER(error, "Caught unknown exception when destroying object ", *object);
         }
 
-        lock.unlock();
-
-        if (! madeSharedObject)
+        // Have to let the newly created shared_ptr delete the object
+        if (! resurrectedObject)
         {
             LOGGER(debug, "_destroyObject(): calling delete() on object pointer");
             delete object;

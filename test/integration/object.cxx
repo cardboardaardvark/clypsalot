@@ -41,6 +41,27 @@ TEST_CASE(Object_destruction_event)
     BOOST_CHECK(handlerExecuted == true);
 }
 
+TEST_CASE(Object_destruction_unlink)
+{
+    auto source = ProcessingTestObject::make();
+    auto sink = ProcessingTestObject::make();
+    std::unique_lock sourceLock(*source);
+    std::unique_lock sinkLock(*sink);
+    auto& output = source->publicAddOutput<PTestOutputPort>("output");
+    auto& input = sink->publicAddInput<PTestInputPort>("input");
+
+    source->configure();
+    sink->configure();
+
+    linkPorts(output, input);
+    BOOST_CHECK(source->links().size() == 1);
+    BOOST_CHECK(sink->links().size() == 1);
+
+    // If unlinking fails when the source and sink go out of scope the destructor
+    // for Port on each object will have a fatal error which will make the test
+    // fail.
+}
+
 TEST_CASE(Object_readiness)
 {
     auto object = TestObject::make();
