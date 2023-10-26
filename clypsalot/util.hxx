@@ -25,15 +25,14 @@ namespace Clypsalot
     /**
      * @brief Execute a std::function during destruction.
      *
-     * This class is intended to be used to execute a std::function when an instance
-     * of it goes out ot scope. The function is stored as a reference so care must be
-     * taken to ensure that the registered function always exists alongside the instance.
+     * This class executes a std::function when an instance of it goes out ot scope. It is
+     * intended to be used to perform operations in an exception safe way.
      */
     class Finally
     {
         using Function = std::function<void ()>;
 
-        const Function& finally;
+        const Function finally;
 
         public:
         Finally(const Function& finally);
