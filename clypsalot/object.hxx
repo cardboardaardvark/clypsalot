@@ -136,7 +136,9 @@ namespace Clypsalot
         }
 
         public:
-        const size_t id;
+        using Id = std::size_t;
+
+        const Id id;
         const std::string& kind;
 
         Object(const std::string& kind);

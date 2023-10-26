@@ -20,7 +20,7 @@ using namespace Clypsalot;
 
 TEST_MAIN_FUNCTION
 
-TEST_CASE(linkPorts_function)
+TEST_CASE(linkPorts_function_single)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
@@ -37,13 +37,80 @@ TEST_CASE(linkPorts_function)
 
     BOOST_CHECK(object1->state() == ObjectState::waiting);
     BOOST_CHECK(object2->state() == ObjectState::waiting);
-    auto& link = linkPorts(output, input);
+    auto link = linkPorts(output, input);
     BOOST_CHECK(object1->state() == ObjectState::waiting);
     BOOST_CHECK(object2->state() == ObjectState::waiting);
     BOOST_CHECK(output.links().size() == 1);
-    BOOST_CHECK(*output.links().at(0) == link);
+    BOOST_CHECK(output.links().at(0) == link);
     BOOST_CHECK(input.links().size() == 1);
-    BOOST_CHECK(*input.links().at(0) == link);
+    BOOST_CHECK(input.links().at(0) == link);
+}
+
+TEST_CASE(linkPorts_function_list)
+{
+    auto source = TestObject::make();
+    auto sink = TestObject::make();
+    std::vector<SharedObject> objects;
+    std::vector<std::unique_lock<Object>> locks;
+    std::vector<Port*> ports;
+
+    objects.push_back(source);
+    objects.push_back(sink);
+
+    for (const auto& object : objects)
+    {
+        locks.emplace_back(*object);
+    }
+
+    auto& output1 = source->publicAddOutput<MTestOutputPort>("output1");
+    auto& output2 = source->publicAddOutput<MTestOutputPort>("output2");
+    auto& input1 = sink->publicAddInput<MTestInputPort>("input1");
+    auto& input2 = sink->publicAddInput<MTestInputPort>("input2");
+
+    ports.push_back(&output1);
+    ports.push_back(&output2);
+    ports.push_back(&input1);
+    ports.push_back(&input2);
+
+    for (const auto& object : objects)
+    {
+        object->configure();
+        object->start();
+
+        BOOST_CHECK(object->state() == ObjectState::waiting);
+    }
+
+    for (const auto port : ports)
+    {
+        BOOST_CHECK(port->links().size() == 0);
+    }
+
+    auto links = linkPorts(
+    {
+        { output1, input1 },
+        { output2, input2 },
+    });
+
+    for (const auto& object : objects)
+    {
+        BOOST_CHECK(object->state() == ObjectState::waiting);
+    }
+
+    BOOST_CHECK(links.size() == 2);
+    BOOST_CHECK(source->links().size() == 2);
+    BOOST_CHECK(sink->links().size() == 2);
+
+    auto link = links.at(0);
+    BOOST_CHECK(link->from == output1);
+    BOOST_CHECK(link->to == input1);
+    BOOST_CHECK(output1.links().at(0) == link);
+    BOOST_CHECK(input1.links().at(0) == link);
+
+    link = links.at(1);
+    BOOST_CHECK(link->from == output2);
+    BOOST_CHECK(link->to == input2);
+    BOOST_CHECK(output2.links().at(0) == link);
+    BOOST_CHECK(input2.links().at(0) == link);
 }
 
 TEST_CASE(unlinkPorts_function_single)

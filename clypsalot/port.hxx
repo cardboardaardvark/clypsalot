@@ -63,7 +63,7 @@ namespace Clypsalot
         bool operator==(const Port& other);
         bool operator!=(const Port& other);
         const std::vector<PortLink*>& links() const noexcept;
-        void addLink(PortLink* link) noexcept;
+        void addLink(PortLink* link);
         void removeLink(const PortLink* link);
     };
 
@@ -83,7 +83,8 @@ namespace Clypsalot
         virtual bool ready() const noexcept = 0;
     };
 
-    PortLink& linkPorts(OutputPort& output, InputPort& input);
+    PortLink* linkPorts(OutputPort& output, InputPort& input);
+    std::vector<PortLink*> linkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     void unlinkPorts(OutputPort& output, InputPort& input);
     void unlinkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     std::string asString(const OutputPort& port) noexcept;

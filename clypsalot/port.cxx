@@ -71,9 +71,14 @@ namespace Clypsalot
         return portLinks;
     }
 
-    void Port::addLink(PortLink* link) noexcept
+    void Port::addLink(PortLink* link)
     {
         assert(parent.haveLock());
+
+        if (parent.state() != ObjectState::paused)
+        {
+            throw StateError(makeString("Object was not paused when adding a link: ", parent));
+        }
 
         portLinks.push_back(link);
     }
@@ -135,7 +140,7 @@ namespace Clypsalot
         return Port::findLink(from, *this);
     }
 
-    PortLink& linkPorts(OutputPort& output, InputPort& input)
+    PortLink* linkPorts(OutputPort& output, InputPort& input)
     {
         assert(output.parent.haveLock());
         assert(input.parent.haveLock());
@@ -164,7 +169,60 @@ namespace Clypsalot
         output.addLink(link);
         input.addLink(link);
 
-        return *link;
+        return link;
+    }
+
+    std::vector<PortLink*> linkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList)
+    {
+        std::vector<PortLink*> links;
+        bool needUnlink = true;
+        std::vector<SharedObject> startObjects;
+        std::map<SharedObject, bool> seenObject;
+        Finally finally([&needUnlink, &links, &startObjects] {
+            if (needUnlink)
+            {
+                for (const auto& link : links)
+                {
+                    unlinkPorts(link->from, link->to);
+                }
+            }
+
+            for (const auto& object : startObjects)
+            {
+                object->start();
+            }
+        });
+
+        links.reserve(portList.size());
+
+        for (const auto& ports : portList)
+        {
+            auto fromParent = ports.first.parent.shared_from_this();
+            auto toParent = ports.second.parent.shared_from_this();
+
+            assert(fromParent->haveLock());
+            assert(toParent->haveLock());
+
+            for (const auto& object : { fromParent, toParent })
+            {
+                if (! seenObject.contains(object))
+                {
+                    seenObject[object] = true;
+
+                    if (pauseObject(object))
+                    {
+                        startObjects.push_back(object);
+                    }
+                }
+            }
+
+            auto link = linkPorts(ports.first, ports.second);
+            links.push_back(link);
+        }
+
+        needUnlink = false;
+
+        return links;
     }
 
     /**
