@@ -15,4 +15,4 @@ add_library(
     util.hxx util.cxx
 )
 
-target_link_libraries(${CLYPSALOT_LIB_TARGET} Boost::boost)
+target_link_libraries(${CLYPSALOT_LIB_TARGET} PRIVATE Boost::boost)

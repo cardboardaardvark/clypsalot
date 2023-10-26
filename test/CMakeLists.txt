@@ -15,7 +15,7 @@ add_library(
     module/port.cxx
 )
 
-target_link_libraries(${CLYPSALOT_TEST_LIB_TARGET} clypsalot Boost::unit_test_framework)
+target_link_libraries(${CLYPSALOT_TEST_LIB_TARGET} PUBLIC clypsalot Boost::unit_test_framework)
 
 add_clypsalot_test(unit test)
 add_clypsalot_test(unit util)

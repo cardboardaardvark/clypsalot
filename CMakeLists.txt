@@ -51,8 +51,6 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR})
 # to remove the path to the project directory from the filename output.
 add_compile_definitions(CLYPSALOT_PROJECT_DIR="${CMAKE_SOURCE_DIR}/")
 
-include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
-
 add_subdirectory(${CLYPSALOT_LIBRARY_SOURCE_DIRECTORY})
 
 if(Boost_UNIT_TEST_FRAMEWORK_FOUND)
