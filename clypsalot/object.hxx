@@ -80,8 +80,6 @@ namespace Clypsalot
 
     class Object : public Lockable, public Eventful, public std::enable_shared_from_this<Object>
     {
-        friend void scheduleObject(Object&);
-
         ObjectState currentState = ObjectState::initializing;
 
         void state(const ObjectState newState);
@@ -262,7 +260,7 @@ namespace Clypsalot
     bool objectIsPreparing(const ObjectState state) noexcept;
     bool pauseObject(const SharedObject& object);
     void startObject(const SharedObject& object);
-    void scheduleObject(const SharedObject& object);
+    void scheduleObject(const SharedObject object);
     void stopObject(const SharedObject& object);
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept;
     std::string asString(const Object& object) noexcept;

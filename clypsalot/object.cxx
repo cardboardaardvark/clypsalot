@@ -776,7 +776,10 @@ namespace Clypsalot
      * @throws StateError if the object is not in a state where it can be scheduled.
      * @throws Any other exceptions and sets the object to faulted if an error is encountered.
      */
-    void scheduleObject(const SharedObject& object)
+    // If the shared_ptr comes in as a reference then the lambda will capture it as a reference
+    // too but the lambda needs to increase the reference count so the object stays alive while
+    // the job sits in the queue and is processing.
+    void scheduleObject(const SharedObject object)
     {
         assert(object->haveLock());
 
