@@ -12,17 +12,14 @@
 using namespace Clypsalot;
 using namespace std::chrono_literals;
 
-int main()
+void process()
 {
-    logEngine().makeDestination<ConsoleDestination>(LogSeverity::trace);
-    initThreadQueue(0);
-
     auto source = ProcessingTestObject::make();
-    std::unique_lock sourceLock(*source);
-    auto& output = source->publicAddOutput<PTestOutputPort>("output");
     auto sink = ProcessingTestObject::make();
+    std::unique_lock sourceLock(*source);
     std::unique_lock sinkLock(*sink);
     auto& input = sink->publicAddInput<PTestInputPort>("input");
+    auto& output = source->publicAddOutput<PTestOutputPort>("output");
 
     source->property("Test::Max Process").sizeValue(1000);
     sink->property("Test::Max Process").sizeValue(1000);
@@ -40,11 +37,18 @@ int main()
 
     sourceLock.lock();
     sinkLock.lock();
-    unlinkPorts(output, input);
     stopObject(source);
     stopObject(sink);
     sourceLock.unlock();
     sinkLock.unlock();
+}
 
-    shutdownThreadQueue();
+int main()
+{
+    logEngine().makeDestination<ConsoleDestination>(LogSeverity::trace);
+    initThreadQueue(0);
+
+    process();
+
+    threadQueue().shutdown();
 }
