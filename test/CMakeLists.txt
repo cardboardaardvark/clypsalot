@@ -20,6 +20,7 @@ target_link_libraries(${CLYPSALOT_TEST_LIB_TARGET} PUBLIC clypsalot Boost::unit_
 add_clypsalot_test(unit test)
 add_clypsalot_test(unit util)
 add_clypsalot_test(unit thread)
+add_clypsalot_test(unit message)
 add_clypsalot_test(unit object)
 add_clypsalot_test(unit port)
 

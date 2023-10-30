@@ -7,7 +7,9 @@ add_library(
     forward.hxx
     logging.hxx logging.cxx
     macros.hxx
+    message.hxx message.cxx
     module.hxx module.cxx
+    network.hxx network.cxx
     object.hxx object.cxx
     port.hxx port.cxx
     property.hxx property.cxx

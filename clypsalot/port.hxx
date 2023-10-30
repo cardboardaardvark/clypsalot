@@ -30,18 +30,22 @@ namespace Clypsalot
         virtual PortLink* makeLink(OutputPort& from, InputPort& to) const = 0;
     };
 
-    struct PortLink : Lockable
+    class PortLink : protected Lockable
     {
+        bool endOfDataFlag = false;
+
+        public:
         OutputPort& from;
         InputPort& to;
 
-        public:
         PortLink(OutputPort& from, InputPort& to);
         PortLink(const PortLink&) = delete;
         virtual ~PortLink() = default;
         void operator=(const PortLink&) = delete;
         bool operator==(const PortLink& other);
         bool operator!=(const PortLink& other);
+        void setEndOfData() noexcept;
+        bool endOfData() const noexcept;
     };
 
     class Port
@@ -72,6 +76,7 @@ namespace Clypsalot
         public:
         OutputPort(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const InputPort& to) const noexcept;
+        void setEndOfData() const noexcept;
         virtual bool ready() const noexcept = 0;
     };
 
@@ -80,6 +85,7 @@ namespace Clypsalot
         public:
         InputPort(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const OutputPort& from) const noexcept;
+        bool endOfData() const noexcept;
         virtual bool ready() const noexcept = 0;
     };
 

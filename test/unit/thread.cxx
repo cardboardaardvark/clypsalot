@@ -11,12 +11,21 @@
  */
 
 #include <atomic>
+#include <chrono>
 #include <condition_variable>
+#include <random>
 
+#include <clypsalot/error.hxx>
 #include <clypsalot/thread.hxx>
+#include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/util.hxx>
 
 #include "test/lib/test.hxx"
+
+#define TORTURE_THREADS 20
+#define TORTURE_COUNT 1000000
+#define NEW_THREAD(block) std::thread([&] block).join()
 
 using namespace Clypsalot;
 
@@ -80,4 +89,162 @@ TEST_CASE(threadCall_reentrant)
     });
 
     BOOST_CHECK(depth == 2);
+}
+
+TEST_CASE(DebugMutex_lock)
+{
+    DebugMutex mutex;
+
+    BOOST_CHECK(! mutex.locked());
+    BOOST_CHECK(! mutex.haveLock());
+
+    mutex.lock();
+    BOOST_CHECK(mutex.locked());
+    BOOST_CHECK(mutex.haveLock());
+
+    NEW_THREAD(
+    {
+        BOOST_CHECK(mutex.locked());
+        BOOST_CHECK(! mutex.haveLock());
+    });
+
+    mutex.unlock();
+}
+
+TEST_CASE(DebugMutex_recursive_lock)
+{
+    DebugMutex mutex;
+
+    BOOST_CHECK(! mutex.locked());
+    BOOST_CHECK(! mutex.haveLock());
+
+    mutex.lock();
+    BOOST_CHECK_THROW(mutex.lock(), MutexLockError);
+    BOOST_CHECK_THROW(mutex.tryLock(), MutexLockError);
+
+    mutex.unlock();
+}
+
+TEST_CASE(DebugMutex_unlock)
+{
+    DebugMutex mutex;
+
+    BOOST_CHECK_NO_THROW(mutex.lock());
+    BOOST_CHECK(mutex.locked());
+    BOOST_CHECK_NO_THROW(mutex.unlock());
+    BOOST_CHECK(! mutex.locked());
+    BOOST_CHECK_THROW(mutex.unlock(), MutexUnlockError);
+}
+
+TEST_CASE(DebugMutex_unowned_unlock)
+{
+    DebugMutex mutex;
+
+    mutex.lock();
+
+    NEW_THREAD(
+    {
+        BOOST_CHECK_THROW(mutex.unlock(), MutexUnlockError);
+    });
+
+    BOOST_CHECK_NO_THROW(mutex.unlock());
+}
+
+TEST_CASE(DebugMutex_torture)
+{
+    DebugMutex mutex;
+    std::vector<std::thread> threads;
+    size_t counter = 0;
+    std::random_device dev;
+    std::mt19937 rng(dev());
+    std::uniform_int_distribution<std::mt19937::result_type> distribution(1,10);
+    std::vector<uint_fast32_t> delays;
+    std::atomic busy = ATOMIC_VAR_INIT(0);
+
+    delays.reserve(TORTURE_COUNT);
+
+    LOGGER(verbose, "Generating random delay values");
+    for (size_t i = 0; i < TORTURE_COUNT; i++)
+    {
+        auto random = distribution(rng);
+        delays.push_back(random);
+    }
+
+    BOOST_CHECK(counter == 0);
+
+    LOGGER(verbose, "Starting torture test");
+    for (size_t i = 0; i < TORTURE_THREADS; i++)
+    {
+        threads.emplace_back([&]
+        {
+            while(true)
+            {
+                std::unique_lock lock(mutex);
+
+                if (busy)
+                {
+                    BOOST_FAIL(makeString("Mutex did not actually perform mutual exclusion; counter=", counter));
+                }
+
+                busy = true;
+                if (counter >= TORTURE_COUNT)
+                {
+                    LOGGER(debug, "Thread is done");
+                    busy = false;
+                    return;
+                }
+                auto count = counter++;
+                busy = false;
+                lock.unlock();
+
+                auto usec = delays.at(count);
+                std::this_thread::sleep_for(std::chrono::microseconds(usec));
+            }
+        });
+    }
+
+    for (auto& thread : threads)
+    {
+        LOGGER(debug, "Joining thread ", thread.get_id());
+        thread.join();
+    }
+
+    BOOST_CHECK(counter == TORTURE_COUNT);
+}
+
+TEST_CASE(RecursiveDebugMutex_recursive_lock)
+{
+    RecursiveDebugMutex mutex;
+
+    BOOST_CHECK(mutex.lockCount() == 0);
+    BOOST_CHECK(! mutex.locked());
+    BOOST_CHECK(! mutex.haveLock());
+
+    BOOST_CHECK_NO_THROW(mutex.lock());
+    BOOST_CHECK(mutex.lockCount() == 1);
+    BOOST_CHECK(mutex.locked());
+    BOOST_CHECK(mutex.haveLock());
+    NEW_THREAD(
+    {
+        BOOST_CHECK(mutex.locked());
+        BOOST_CHECK(! mutex.haveLock());
+    });
+
+    BOOST_CHECK_NO_THROW(mutex.lock());
+    BOOST_CHECK(mutex.lockCount() == 2);
+
+    BOOST_CHECK_NO_THROW(mutex.unlock());
+    BOOST_CHECK(mutex.lockCount() == 1);
+    BOOST_CHECK(mutex.locked());
+    BOOST_CHECK(mutex.haveLock());
+
+    BOOST_CHECK_NO_THROW(mutex.unlock());
+    BOOST_CHECK(mutex.lockCount() == 0);
+    BOOST_CHECK(! mutex.locked());
+    BOOST_CHECK(! mutex.haveLock());
+
+    BOOST_CHECK_THROW(mutex.unlock(), MutexUnlockError);
+    BOOST_CHECK(mutex.lockCount() == 0);
+    BOOST_CHECK(! mutex.locked());
+    BOOST_CHECK(! mutex.haveLock());
 }

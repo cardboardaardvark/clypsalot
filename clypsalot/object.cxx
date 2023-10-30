@@ -112,13 +112,25 @@ namespace Clypsalot
 
         if (! validateStateChange(oldState, newState))
         {
+            OBJECT_LOGGER(error, "requested state change is invalid: ", formatStateChange(oldState, newState));
             throw StateError(makeString("Object state change is invalid: ", formatStateChange(oldState, newState)));
         }
 
         currentState = newState;
-        OBJECT_LOGGER(trace, "Changed state: ", formatStateChange(oldState, newState));
         events->send(ObjectStateChangedEvent(shared_from_this(), oldState, currentState));
         condVar.notify_all();
+    }
+
+    bool Object::endOfData() const noexcept
+    {
+        assert(haveLock());
+
+        for (const auto input : inputPorts)
+        {
+            if (input->endOfData()) return true;
+        }
+
+        return false;
     }
 
     bool Object::ready() const noexcept
@@ -133,7 +145,9 @@ namespace Clypsalot
             return false;
         }
 
-        for (const auto port : outputPorts)
+        if (endOfData()) return true;
+
+        for (const auto port : inputPorts)
         {
             if (! port->ready())
             {
@@ -142,7 +156,7 @@ namespace Clypsalot
             }
         }
 
-        for (const auto port : inputPorts)
+        for (const auto port : outputPorts)
         {
             if (! port->ready())
             {
@@ -326,6 +340,18 @@ namespace Clypsalot
         assert(currentState == ObjectState::configuring);
     }
 
+    void Object::handleEndOfData() noexcept
+    {
+        assert(mutex.haveLock());
+
+        for (const auto port : outputPorts)
+        {
+            port->setEndOfData();
+        }
+
+        stop();
+    }
+
     Property& Object::addProperty(const PropertyConfig& config)
     {
         assert(haveLock());
@@ -435,7 +461,7 @@ namespace Clypsalot
         }
     }
 
-    bool Object::execute()
+    ObjectProcessResult Object::execute()
     {
         assert(haveLock());
 
@@ -443,20 +469,29 @@ namespace Clypsalot
         {
             state(ObjectState::executing);
 
-            const bool finished = process();
-
-            if (finished)
+            if (endOfData())
             {
-                state(ObjectState::waiting);
-            }
-            else
-            {
-                // In the future the process() method could enter a blocked state and finish executing
-                // with another job in the thread queue later.
-                FATAL_ERROR("Blocked state is not yet implemented");
+                OBJECT_LOGGER(trace, "Got end of data from an input port");
+                handleEndOfData();
+                return ObjectProcessResult::endOfData;
             }
 
-            return finished;
+            const auto result = process();
+
+            switch (result)
+            {
+                case ObjectProcessResult::finished:
+                    state(ObjectState::waiting);
+                    return ObjectProcessResult::finished;
+
+                case ObjectProcessResult::blocked:
+                    FATAL_ERROR("Blocked state is not yet implemented");
+
+                case ObjectProcessResult::endOfData:
+                    OBJECT_LOGGER(trace, "Got end of data from process()");
+                    handleEndOfData();
+                    return ObjectProcessResult::endOfData;
+            }
         }
         catch (const std::exception& e)
         {
@@ -790,9 +825,9 @@ namespace Clypsalot
             LOGGER(debug, "Executing ", *object, " from inside the thread queue.");
 
             std::unique_lock lock(*object);
-            const bool finishedExecuting = object->execute();
+            const auto result = object->execute();
 
-            if (! finishedExecuting)
+            if (result == ObjectProcessResult::blocked)
             {
                 return;
             }
@@ -802,7 +837,7 @@ namespace Clypsalot
 
             for (const auto& check : checkObjects)
             {
-                lock = std::unique_lock(*check);
+                std::unique_lock checkLock(*check);
 
                 if (check->ready())
                 {
@@ -842,7 +877,18 @@ namespace Clypsalot
         switch (oldState)
         {
             case ObjectState::configuring: if (newState == ObjectState::paused || objectIsShutdown(newState)) return true; return false;
-            case ObjectState::executing: if (newState == ObjectState::waiting) return true; return false;
+            case ObjectState::executing:
+                switch (newState)
+                {
+                    case ObjectState::configuring: return false;
+                    case ObjectState::executing: return true;
+                    case ObjectState::faulted: return true;
+                    case ObjectState::initializing: return false;
+                    case ObjectState::paused: return false;
+                    case ObjectState::scheduled: return false;
+                    case ObjectState::stopped: return true;
+                    case ObjectState::waiting: return true;
+                }
             case ObjectState::faulted: return false;
             case ObjectState::initializing: if (newState == ObjectState::configuring || objectIsShutdown(newState)) return true; return false;
             case ObjectState::paused:

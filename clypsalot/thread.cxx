@@ -25,6 +25,19 @@ namespace Clypsalot
     static Mutex threadQueueSingletonMutex;
     thread_local bool ThreadQueue::insideQueueFlag = false;
 
+    DebugMutex::DebugMutex() :
+        recurseOk(false)
+    { }
+
+    DebugMutex::DebugMutex(const bool recurseOk) :
+        recurseOk(recurseOk)
+    { }
+
+    DebugMutex::~DebugMutex()
+    {
+        if (_locked()) FATAL_ERROR("Mutex was locked when it was destroyed");
+    }
+
     bool DebugMutex::_locked() const
     {
         return std::thread::id() != lockedBy;
@@ -55,6 +68,12 @@ namespace Clypsalot
         return _haveLock();
     }
 
+    size_t DebugMutex::lockCount() const
+    {
+        std::unique_lock lock(metaMutex);
+        return lockCounter;
+    }
+
     /**
      * @brief Lock the mutex.
      *
@@ -65,17 +84,17 @@ namespace Clypsalot
     {
         std::unique_lock lock(metaMutex);
 
-        if (_haveLock())
-        {
-            FATAL_ERROR("Recursive lock attempt on mutex");
-        }
+        if (_haveLock() && ! recurseOk) throw MutexLockError("Recursive lock attempt on mutex");
 
         lock.unlock();
         guardedMutex.lock();
         lock.lock();
 
-        assert(! _locked());
+        if (! recurseOk) assert(! _locked());
+
         lockedBy = std::this_thread::get_id();
+
+        if (recurseOk) lockCounter++;
     }
 
     /**
@@ -88,14 +107,22 @@ namespace Clypsalot
     {
         std::unique_lock lock(metaMutex);
 
-        if (! _haveLock())
-        {
-            FATAL_ERROR("Mutex was not locked by the calling thread");
-        }
+        if (! _haveLock()) throw MutexUnlockError("Mutex was not locked by the calling thread");
 
         assert(_locked());
         guardedMutex.unlock();
-        lockedBy = std::thread::id();
+
+        if (recurseOk)
+        {
+            if (--lockCounter == 0)
+            {
+                lockedBy = std::thread::id();
+            }
+        }
+        else
+        {
+            lockedBy = std::thread::id();
+        }
     }
 
     /**
@@ -110,10 +137,7 @@ namespace Clypsalot
     {
         std::unique_lock lock(metaMutex);
 
-        if (_haveLock())
-        {
-            FATAL_ERROR("tryLock() would result in recursive locking of mutex");
-        }
+        if (_haveLock()) throw MutexLockError("tryLock() would result in recursive locking of mutex");
 
         auto lockResult = guardedMutex.try_lock();
 
@@ -126,6 +150,10 @@ namespace Clypsalot
         lockedBy = std::this_thread::get_id();
         return lockResult;
     }
+
+    Lockable::Lockable(const bool recurseOk) :
+        mutex(recurseOk)
+    { }
 
 #ifndef NDEBUG
     bool Lockable::haveLock() const
@@ -152,6 +180,14 @@ namespace Clypsalot
     {
         mutex.unlock();
     }
+
+    RecursiveDebugMutex::RecursiveDebugMutex() :
+        DebugMutex(true)
+    { }
+
+    RecursiveLockable::RecursiveLockable() :
+        Lockable(true)
+    { }
 
     bool SharedDebugMutex::_locked() const
     {

@@ -8,6 +8,10 @@ endif()
 
 project(clypsalot VERSION 0.0.0 LANGUAGES CXX)
 
+include(ProcessorCount)
+
+ProcessorCount(NUM_CPU)
+
 set(CLYPSALOT_LIB_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CLYPSALOT_BIN_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CLYPSALOT_DOC_DIRECTORY ${CMAKE_BINARY_DIR}/doc)
@@ -15,6 +19,7 @@ set(CLYPSALOT_DOC_DIRECTORY ${CMAKE_BINARY_DIR}/doc)
 message(STATUS "Clypsalot build configuration:")
 list(APPEND CMAKE_MESSAGE_INDENT "  ")
 message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+message(STATUS "Num CPU: ${NUM_CPU}")
 message(STATUS "Libraries: ${CLYPSALOT_LIB_DIRECTORY}")
 message(STATUS "Programs: ${CLYPSALOT_BIN_DIRECTORY}")
 message(STATUS "Documentation: ${CLYPSALOT_DOC_DIRECTORY}")
@@ -33,9 +38,6 @@ set(CLYPSALOT_CMAKE_DIR ${CMAKE_SOURCE_DIR}/cmake)
 set(CLYPSALOT_LIB_TARGET clypsalot)
 set(CLYPSALOT_TEST_LIB_TARGET clypsalot-test)
 
-include(${CLYPSALOT_CMAKE_DIR}/dependencies.cmake)
-include(${CLYPSALOT_CMAKE_DIR}/testing.cmake)
-
 add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror -Wfatal-errors)
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
@@ -51,9 +53,12 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR})
 # to remove the path to the project directory from the filename output.
 add_compile_definitions(CLYPSALOT_PROJECT_DIR="${CMAKE_SOURCE_DIR}/")
 
+include(${CLYPSALOT_CMAKE_DIR}/dependencies.cmake)
+
 add_subdirectory(${CLYPSALOT_LIBRARY_SOURCE_DIRECTORY})
 
 if(Boost_UNIT_TEST_FRAMEWORK_FOUND)
+    include(${CLYPSALOT_CMAKE_DIR}/testing.cmake)
     add_subdirectory(test)
 endif()
 

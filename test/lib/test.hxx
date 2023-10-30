@@ -14,6 +14,10 @@
 
 #include <atomic>
 
+#include <clypsalot/catalog.hxx>
+#include <clypsalot/network.hxx>
+#include <clypsalot/object.hxx>
+
 // These must preceed the include of the unit_test.hpp
 #define BOOST_TEST_NO_MAIN
 #define BOOST_TEST_ALTERNATIVE_INIT_API
@@ -40,4 +44,16 @@ namespace Clypsalot
 
     int runTests(int argc, char* argv[]);
     bool initBoostUnitTest();
+
+    template <std::derived_from<Object> T>
+    std::shared_ptr<T> makeTestObject(const std::string& kind)
+    {
+        return std::dynamic_pointer_cast<T>(objectCatalog().make(kind));
+    }
+
+    template <std::derived_from<Object> T>
+    std::shared_ptr<T> makeTestObject(Network& network, const std::string& kind)
+    {
+        return std::dynamic_pointer_cast<T>(network.makeObject(kind));
+    }
 }

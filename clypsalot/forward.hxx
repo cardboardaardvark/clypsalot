@@ -28,7 +28,7 @@ namespace Clypsalot
     class Object;
     struct ObjectDescriptor;
     class OutputPort;
-    struct PortLink;
+    class PortLink;
     struct PortTypeDescriptor;
 
     void scheduleObject(Object&);

@@ -19,8 +19,11 @@
 #include <typeindex>
 #include <vector>
 
+#include <clypsalot/error.hxx>
 #include <clypsalot/forward.hxx>
+#include <clypsalot/message.hxx>
 #include <clypsalot/thread.hxx>
+#include <clypsalot/util.hxx>
 
 /// @file
 namespace Clypsalot
@@ -31,13 +34,13 @@ namespace Clypsalot
      * All events must be copyable as they could be passed between threads and placed into queues
      * for delivery. This class must be inherited by a subclass.
      */
-    class Event
+    class Event : public Message
     {
         protected:
         Event() = default;
 
         public:
-        virtual ~Event() = default;
+        ~Event() = default;
     };
 
     using EventTypeList = std::initializer_list<const std::type_info*>;
@@ -70,15 +73,15 @@ namespace Clypsalot
         virtual void send(const Event& event) = 0;
     };
 
-    template <typename T>
-    struct Subscriber : SubscriberBase
+    template <std::derived_from<Event> T>
+    struct HandlerSubscriber : SubscriberBase
     {
         using EventType = T;
         using Handler = std::function<void (const EventType&)>;
 
         const Handler handler;
 
-        Subscriber(const std::shared_ptr<Subscription>& subscription, const Handler& eventHandler) :
+        HandlerSubscriber(const std::shared_ptr<Subscription>& subscription, const Handler& eventHandler) :
             SubscriberBase(subscription),
             handler(eventHandler)
         { }
@@ -86,6 +89,28 @@ namespace Clypsalot
         virtual void send(const Event& event)
         {
             handler(dynamic_cast<const EventType&>(event));
+        }
+    };
+
+    template <std::derived_from<Event> T>
+    struct MessageSubscriber : SubscriberBase
+    {
+        using EventType = T;
+
+        const std::weak_ptr<MessageProcessor> weakProcessor;
+
+        MessageSubscriber(const std::shared_ptr<Subscription>& subscription, const std::shared_ptr<MessageProcessor> processor) :
+            SubscriberBase(subscription),
+            weakProcessor(processor)
+        { }
+
+        virtual void send(const Event& event)
+        {
+            auto processor = weakProcessor.lock();
+
+            if (! processor) return;
+
+            processor->receive(new T(dynamic_cast<const T&>(event)));
         }
     };
 
@@ -133,15 +158,36 @@ namespace Clypsalot
          * @throws RuntimeError Event type is not registered with sender
          */
         template <std::derived_from<Event> T>
-        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const Subscriber<T>::Handler& handler)
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const HandlerSubscriber<T>::Handler& handler)
         {
             auto subscription = std::make_shared<Subscription>(shared_from_this());
-            auto subscriber = new Subscriber<T>(subscription, handler);
+            auto subscriber = new HandlerSubscriber<T>(subscription, handler);
 
             try {
                 _subscribe(typeid(T), subscriber);
             }
             catch (...)
+            {
+                delete subscriber;
+                throw;
+            }
+
+            return subscription;
+        }
+
+        template <std::derived_from<Event> T>
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const std::shared_ptr<MessageProcessor>& processor)
+        {
+            const auto& type = typeid(T);
+
+            if (! processor->registered(typeid(T))) throw RuntimeError(makeString("Subscriber does not process ", typeName(type), " messages"));
+
+            auto subscription = std::make_shared<Subscription>(shared_from_this());
+            auto subscriber = new MessageSubscriber<T>(subscription, processor);
+
+            try {
+                _subscribe(type, subscriber);
+            } catch (...)
             {
                 delete subscriber;
                 throw;
@@ -158,11 +204,20 @@ namespace Clypsalot
 
         public:
         template <std::derived_from<Event> T>
-        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const Subscriber<T>::Handler& handler)
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const HandlerSubscriber<T>::Handler& handler)
         {
             // No lock on the object mutex is needed because the EventSender is thread safe
             // and the events shared_ptr never changes after construction.
             return events->subscribe<T>(handler);
         }
+
+        template <std::derived_from<Event> T>
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const std::shared_ptr<MessageProcessor>& messages)
+        {
+            // No lock on the object mutex is needed because the EventSender is thread safe
+            // and the events shared_ptr never changes after construction.
+            return events->subscribe<T>(messages);
+        }
+
     };
 }

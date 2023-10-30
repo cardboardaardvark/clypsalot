@@ -23,9 +23,9 @@
 namespace Clypsalot
 {
     const std::string TestObject::kindName = "Test::Object";
-    const std::string ProcessingTestObject::kindName = "Test::ProcessingObject";
-    static const std::string processCounterPropertyName = "Test::Process Counter";
-    static const std::string maxProcessPropertyName = "Test::Max Process";
+    const std::string ProcessingTestObject::kindName = "Test::Processing Object";
+    static const std::string processCounterPropertyName = "Process Counter";
+    static const std::string maxProcessPropertyName = "Max Process";
     static const PropertyList processingProperties = {
         { processCounterPropertyName, PropertyType::size, false, 0 },
         { maxProcessPropertyName, PropertyType::size, true, nullptr },
@@ -47,10 +47,10 @@ namespace Clypsalot
         addProperties(list);
     }
 
-    bool TestObject::process()
+    ObjectProcessResult TestObject::process()
     {
 
-        return true;
+        return ObjectProcessResult::finished;
     }
 
     std::shared_ptr<ProcessingTestObject> ProcessingTestObject::make()
@@ -67,23 +67,28 @@ namespace Clypsalot
 
         processCounterProperty = &propertySizeRef(processCounterPropertyName);
         maxProcessProperty = &propertySizeRef(maxProcessPropertyName);
-
     }
 
-    bool ProcessingTestObject::process()
+    ObjectProcessResult ProcessingTestObject::process()
     {
         assert(haveLock());
 
         TestObject::process();
 
+        if (done)
+        {
+            OBJECT_LOGGER(trace, "Object is done; returning endOfData");
+            return ObjectProcessResult::endOfData;
+        }
+
         (*processCounterProperty)++;
 
-        LOGGER(trace, "Process counter: ", *processCounterProperty);
+        OBJECT_LOGGER(trace, "Process counter: ", *processCounterProperty);
 
-        if (*processCounterProperty >= *maxProcessProperty)
+        if (*maxProcessProperty && *processCounterProperty >= *maxProcessProperty)
         {
-            LOGGER(trace, "Reached max process value: ", *maxProcessProperty);
-            stop();
+            OBJECT_LOGGER(trace, "Reached max process value: ", *maxProcessProperty);
+            done = true;
         }
 
         for (const auto port : inputPorts)
@@ -108,6 +113,6 @@ namespace Clypsalot
             }
         }
 
-        return true;
+        return ObjectProcessResult::finished;
     }
 }

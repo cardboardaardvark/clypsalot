@@ -3,6 +3,12 @@
 # https://stackoverflow.com/questions/52730994/how-to-pass-arguments-to-memcheck-with-ctest
 set(MEMORYCHECK_COMMAND_OPTIONS "--error-exitcode=1 --leak-check=full --show-leak-kinds=definite,possible,indirect --show-reachable=no --show-error-list=yes")
 
+if(NOT NUM_CPU EQUAL 0)
+    set(PARALLEL_LEVEL ${NUM_CPU})
+else()
+    set(PARALLEL_LEVEL 1)
+endif()
+
 include(CTest)
 
 set(CLYPSALOT_TEST_BIN_TARGET tests)
@@ -13,9 +19,9 @@ set(CLYPSALOT_MEM_VALIDATION_TARGET memcheck)
 add_custom_target(${CLYPSALOT_TEST_BIN_TARGET})
 # Target to build all the tests and run testing because the cmake test target
 # isn't real
-add_custom_target(${CLYPSALOT_VALIDATION_TARGET} ctest)
+add_custom_target(${CLYPSALOT_VALIDATION_TARGET} ctest -j ${PARALLEL_LEVEL})
 # Target to run the tests under valgrind/other memory usage validator
-add_custom_target(${CLYPSALOT_MEM_VALIDATION_TARGET} ctest -T memcheck)
+add_custom_target(${CLYPSALOT_MEM_VALIDATION_TARGET} ctest -T memcheck -j ${PARALLEL_LEVEL})
 
 add_dependencies(${CLYPSALOT_VALIDATION_TARGET} ${CLYPSALOT_TEST_BIN_TARGET})
 add_dependencies(${CLYPSALOT_MEM_VALIDATION_TARGET} ${CLYPSALOT_TEST_BIN_TARGET})

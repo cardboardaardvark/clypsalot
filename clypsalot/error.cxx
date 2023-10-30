@@ -12,6 +12,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <thread>
 
 #include <clypsalot/error.hxx>
 #include <clypsalot/util.hxx>
@@ -44,6 +45,14 @@ namespace Clypsalot
         key(keyName)
     { }
     /// @endcond
+
+    MutexLockError::MutexLockError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
+
+    MutexUnlockError::MutexUnlockError(const std::string& errorMessage) :
+        Error(errorMessage)
+    { }
 
     /// @cond NO_DOCUMENT
     RuntimeError::RuntimeError(const std::string& errorMessage) :
@@ -79,7 +88,7 @@ namespace Clypsalot
      */
     [[noreturn]] void fatalError(const std::string& message, const char* file, const std::size_t line)
     {
-        std::string output("FATAL ERROR");
+        auto output = makeString("FATAL ERROR ", std::this_thread::get_id());
 
         if (file == nullptr) {
             output += ": " + message;
@@ -87,7 +96,9 @@ namespace Clypsalot
             output += makeString(" ", file, ":", line, ": ", message);
         }
 
-        std::cout << output << std::endl;
+        output += "\n";
+
+        std::cout << output;
         std::abort();
     }
 }

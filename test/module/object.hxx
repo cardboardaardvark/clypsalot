@@ -37,7 +37,7 @@ namespace Clypsalot
             return dynamic_cast<T&>(addInput<T>(args...));
         }
 
-        virtual bool process() override;
+        virtual ObjectProcessResult process() override;
     };
 
     class ProcessingTestObject : public TestObject
@@ -45,12 +45,13 @@ namespace Clypsalot
         protected:
         size_t* processCounterProperty = nullptr;
         size_t* maxProcessProperty = nullptr;
+        bool done = false;
 
         public:
         static const std::string kindName;
 
         static std::shared_ptr<ProcessingTestObject> make();
         ProcessingTestObject(const std::string& kind);
-        virtual bool process() override;
+        virtual ObjectProcessResult process() override;
     };
 }

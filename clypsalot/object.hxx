@@ -48,6 +48,13 @@ namespace Clypsalot
         stopped,
     };
 
+    enum class ObjectProcessResult : uint_fast8_t
+    {
+        blocked,
+        finished,
+        endOfData
+    };
+
     struct ObjectEvent : Event
     {
         SharedObject object;
@@ -91,10 +98,12 @@ namespace Clypsalot
         std::vector<OutputPort*> outputPorts;
         std::vector<InputPort*> inputPorts;
 
+        bool endOfData() const noexcept;
         void fault(const std::string& message) noexcept;
-        virtual bool process() = 0;
+        virtual ObjectProcessResult process() = 0;
         virtual void handleInit(const ObjectConfig& config);
         virtual void handleConfigure(const ObjectConfig& config);
+        virtual void handleEndOfData() noexcept;
         Property& addProperty(const PropertyConfig& config);
         void addProperties(const PropertyList& list);
         size_t& propertySizeRef(const std::string& name);
@@ -155,7 +164,7 @@ namespace Clypsalot
         void configure(const ObjectConfig& config = {});
         void start();
         void schedule();
-        bool execute();
+        ObjectProcessResult execute();
         void pause();
         void stop();
         const std::vector<OutputPort*>& outputs() const noexcept;

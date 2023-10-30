@@ -40,6 +40,18 @@ namespace Clypsalot
         return this != &other;
     }
 
+    void PortLink::setEndOfData() noexcept
+    {
+        std::unique_lock lock(mutex);
+        endOfDataFlag = true;
+    }
+
+    bool PortLink::endOfData() const noexcept
+    {
+        std::unique_lock lock(mutex);
+        return endOfDataFlag;
+    }
+
     Port::Port(const std::string& name, const PortType& type, Object& parent) :
         parent(parent),
         name(name),
@@ -122,6 +134,16 @@ namespace Clypsalot
         Port(name, type, parent)
     { }
 
+    void OutputPort::setEndOfData() const noexcept
+    {
+        assert(parent.haveLock());
+
+        for (const auto link : links())
+        {
+            link->setEndOfData();
+        }
+    }
+
     PortLink* OutputPort::findLink(const InputPort& to) const noexcept
     {
         assert(parent.haveLock());
@@ -138,6 +160,18 @@ namespace Clypsalot
         assert(parent.haveLock());
 
         return Port::findLink(from, *this);
+    }
+
+    bool InputPort::endOfData() const noexcept
+    {
+        assert(parent.haveLock());
+
+        for (const auto link : links())
+        {
+            if (link->endOfData()) return true;
+        }
+
+        return false;
     }
 
     PortLink* linkPorts(OutputPort& output, InputPort& input)

@@ -55,6 +55,16 @@ namespace Clypsalot
         /// @endcond
     };
 
+    struct MutexLockError : public Error
+    {
+        MutexLockError(const std::string& errorMessage);
+    };
+
+    struct MutexUnlockError : public Error
+    {
+        MutexUnlockError(const std::string& message);
+    };
+
     /**
      * @brief A generic error for problems that arrise at runtime.
      */
