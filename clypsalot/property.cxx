@@ -16,29 +16,23 @@
 #include <clypsalot/property.hxx>
 #include <clypsalot/util.hxx>
 
-#define ENFORCE_TYPE(enforceType)\
-    if (type != PropertyType::enforceType)\
-    {\
-        throw TypeError(makeString("Property ", name, " is not of ", #enforceType, " type"));\
-    }
-
-#define ENFORCE_PUBLIC_MUTABLE()\
-    if (! publicMutable) {\
-        throw ImmutableError(makeString("Property ", name, " is not mutable"));\
-    }
-
-#define ENFORCE_DEFINED()\
-    if (! hasValue) {\
-        throw UndefinedError(makeString("Property ", name, " does not have a value"));\
-    }\
-
 namespace Clypsalot
 {
-    Property::Property(const Lockable& parent, const std::string& name, const PropertyType type, const bool publicMutable, const std::any& initial) :
-        parent(parent),
-        name(name),
-        type(type),
-        publicMutable(publicMutable)
+    Property::Property(
+            const Lockable& parent,
+            const std::string& name,
+            const PropertyType type,
+            const bool configurable,
+            const bool required,
+            const bool publicMutable,
+            const std::any& initial
+        ) :
+            parent(parent),
+            name(name),
+            type(type),
+            configurable(configurable),
+            required(required),
+            publicMutable(publicMutable)
     {
         switch (type)
         {
@@ -77,7 +71,7 @@ namespace Clypsalot
         return hasValue;
     }
 
-    bool Property::defined()
+    bool Property::defined() const
     {
         assert(parent.haveLock());
 
@@ -101,29 +95,45 @@ namespace Clypsalot
         hasValue = true;
     }
 
+    void Property::enforcePublicMutable() const
+    {
+        if (! publicMutable) throw ImmutableError(makeString("Property ", name, " is not mutable"));
+    }
+
+    void Property::enforceType(const PropertyType enforceType) const
+    {
+        if (type != enforceType) throw TypeError(makeString("Property ", name, " is not of ", enforceType, " type"));
+    }
+
+    void Property::enforceDefined() const
+    {
+        if (! hasValue) throw UndefinedError(makeString("Property ", name, " does not have a value"));
+    }
+
     Property::BooleanType& Property::booleanRef()
     {
         assert(parent.haveLock());
 
-        ENFORCE_TYPE(boolean);
+        enforceType(PropertyType::boolean);
 
         return container.boolean;
     }
 
-    Property::BooleanType Property::booleanValue()
+    Property::BooleanType Property::booleanValue() const
     {
         assert(parent.haveLock());
 
-        ENFORCE_DEFINED();
+        enforceType(PropertyType::boolean);
+        enforceDefined();
 
-        return booleanRef();
+        return container.boolean;
     }
 
     void Property::booleanValue(const BooleanType value)
     {
         assert(parent.haveLock());
 
-        ENFORCE_PUBLIC_MUTABLE();
+        enforcePublicMutable();
 
         booleanRef() = value;
         hasValue = true;
@@ -133,25 +143,26 @@ namespace Clypsalot
     {
         assert(parent.haveLock());
 
-        ENFORCE_TYPE(file);
+        enforceType(PropertyType::file);
 
         return *container.file;
     }
 
-    Property::FileType Property::fileValue()
+    Property::FileType Property::fileValue() const
     {
         assert(parent.haveLock());
 
-        ENFORCE_DEFINED();
+        enforceType(PropertyType::file);
+        enforceDefined();
 
-        return fileRef();
+        return *container.file;
     }
 
     void Property::fileValue(const FileType& value)
     {
         assert(parent.haveLock());
 
-        ENFORCE_PUBLIC_MUTABLE();
+        enforcePublicMutable();
 
         fileRef() = value;
         hasValue = true;
@@ -161,25 +172,26 @@ namespace Clypsalot
     {
         assert(parent.haveLock());
 
-        ENFORCE_TYPE(integer);
+        enforceType(PropertyType::integer);
 
         return container.integer;
     }
 
-    Property::IntegerType Property::integerValue()
+    Property::IntegerType Property::integerValue() const
     {
         assert(parent.haveLock());
 
-        ENFORCE_DEFINED();
+        enforceType(PropertyType::integer);
+        enforceDefined();
 
-        return integerRef();
+        return container.integer;
     }
 
     void Property::integerValue(const IntegerType value)
     {
         assert(parent.haveLock());
 
-        ENFORCE_PUBLIC_MUTABLE();
+        enforcePublicMutable();
 
         integerRef() = value;
         hasValue = true;
@@ -189,25 +201,26 @@ namespace Clypsalot
     {
         assert(parent.haveLock());
 
-        ENFORCE_TYPE(real);
+        enforceType(PropertyType::real);
 
         return container.real;
     }
 
-    Property::RealType Property::realValue()
+    Property::RealType Property::realValue() const
     {
         assert(parent.haveLock());
 
-        ENFORCE_DEFINED();
+        enforceType(PropertyType::real);
+        enforceDefined();
 
-        return realRef();
+        return container.real;
     }
 
     void Property::realValue(const RealType value)
     {
         assert(parent.haveLock());
 
-        ENFORCE_PUBLIC_MUTABLE();
+        enforcePublicMutable();
 
         realRef() = value;
         hasValue = true;
@@ -217,25 +230,26 @@ namespace Clypsalot
     {
         assert(parent.haveLock());
 
-        ENFORCE_TYPE(size);
+        enforceType(PropertyType::size);
 
         return container.size;
     }
 
-    Property::SizeType Property::sizeValue()
+    Property::SizeType Property::sizeValue() const
     {
         assert(parent.haveLock());
 
-        ENFORCE_DEFINED();
+        enforceType(PropertyType::size);
+        enforceDefined();
 
-        return sizeRef();
+        return container.size;
     }
 
     void Property::sizeValue(const SizeType value)
     {
         assert(parent.haveLock());
 
-        ENFORCE_PUBLIC_MUTABLE();
+        enforcePublicMutable();
 
         sizeRef() = value;
         hasValue = true;
@@ -245,27 +259,71 @@ namespace Clypsalot
     {
         assert(parent.haveLock());
 
-        ENFORCE_TYPE(string);
+        enforceType(PropertyType::string);
 
         return *container.string;
     }
 
-    Property::StringType Property::stringValue()
+    Property::StringType Property::stringValue() const
     {
         assert(parent.haveLock());
 
-        ENFORCE_DEFINED();
+        enforceType(PropertyType::string);
+        enforceDefined();
 
-        return stringRef();
+        return *container.string;
     }
 
     void Property::stringValue(const StringType& value)
     {
         assert(parent.haveLock());
 
-        ENFORCE_PUBLIC_MUTABLE();
+        enforcePublicMutable();
 
         stringRef() = value;
         hasValue = true;
+    }
+
+    std::any Property::anyValue() const
+    {
+        if (! hasValue) return std::any(nullptr);
+
+        switch (type)
+        {
+            case PropertyType::boolean: return std::any(booleanValue());
+            case PropertyType::file: return std::any(fileValue());
+            case PropertyType::integer: return std::any(integerValue());
+            case PropertyType::real: return std::any(realValue());
+            case PropertyType::size: return std::any(sizeValue());
+            case PropertyType::string: return std::any(stringValue());
+        }
+    }
+
+    void Property::anyValue(const std::any& value)
+    {
+        assert(parent.haveLock());
+
+        enforcePublicMutable();
+
+        set(value);
+    }
+
+    std::string asString(const PropertyType type) noexcept
+    {
+        switch (type)
+        {
+            case PropertyType::boolean: return "boolean";
+            case PropertyType::file: return "file";
+            case PropertyType::integer: return "integer";
+            case PropertyType::real: return "real";
+            case PropertyType::size: return "size";
+            case PropertyType::string: return "string";
+        }
+    }
+
+    std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept
+    {
+        os << asString(type);
+        return os;
     }
 }

@@ -21,7 +21,7 @@ std::shared_ptr<ProcessingTestObject> makeSourceObject(Network& network)
 {
     auto object = makeTestObject(network);
     std::unique_lock lock(*object);
-    object->publicAddOutput<PTestOutputPort>("output");
+    object->addOutput(PTestPortType::typeName, "output");
     object->configure();
     return object;
 }
@@ -30,7 +30,7 @@ std::shared_ptr<ProcessingTestObject> makeSinkObject(Network& network)
 {
     auto object = makeTestObject(network);
     std::unique_lock lock(*object);
-    object->publicAddInput<PTestInputPort>("input");
+    object->addInput(PTestPortType::typeName, "input");
     object->configure();
     return object;
 }

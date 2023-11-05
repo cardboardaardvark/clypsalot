@@ -25,14 +25,10 @@
 #include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 
-#include <clypsalot/logging.hxx>
-#include <clypsalot/macros.hxx>
-#include <clypsalot/util.hxx>
-
 /// @file
 namespace Clypsalot
 {
-    using ObjectConfig = std::initializer_list<std::tuple<std::string, std::any>>;
+    using ObjectConfig = std::vector<std::tuple<std::string, std::any>>;
     using SharedObject = std::shared_ptr<Object>;
     using ObjectConstructor = std::function<SharedObject ()>;
 
@@ -97,6 +93,8 @@ namespace Clypsalot
         std::map<std::string, Property> objectProperties;
         std::vector<OutputPort*> outputPorts;
         std::vector<InputPort*> inputPorts;
+        std::map<std::string, bool> userOutputPortTypes;
+        std::map<std::string, bool> userInputPortTypes;
 
         bool endOfData() const noexcept;
         void fault(const std::string& message) noexcept;
@@ -167,11 +165,15 @@ namespace Clypsalot
         ObjectProcessResult execute();
         void pause();
         void stop();
+        std::vector<std::string> addOutputTypes();
+        OutputPort& addOutput(const std::string& type, const std::string& name);
         const std::vector<OutputPort*>& outputs() const noexcept;
         bool hasOutput(const size_t number) noexcept;
         bool hasOutput(const std::string& name) noexcept;
         OutputPort& output(const size_t number);
         OutputPort& output(const std::string& name);
+        std::vector<std::string> addInputTypes();
+        InputPort& addInput(const std::string& type, const std::string& name);
         const std::vector<InputPort*>& inputs() const noexcept;
         bool hasInput(const size_t number) noexcept;
         bool hasInput(const std::string& name) noexcept;
@@ -190,68 +192,49 @@ namespace Clypsalot
     template <std::derived_from<Object> T>
     void _destroyObject(T* object) noexcept
     {
-        LOGGER(trace, "Object deleter invoked for ", *object);
         // By the time this deleter is called the original owning shared_ptr has already
         // given up ownership of the object so it is safe to create a new owning shared_ptr.
         // The shared_ptr has to be created here so shared_from_this() works after calling
         // object->stop() which will cause shared_from_this() to be called many times as a
         // part of sending the events.
         std::shared_ptr<T> resurrectedObject;
+        std::unique_lock lock(*object);
 
-        try
+        if (! objectIsShutdown(object->state()))
         {
-            std::unique_lock lock(*object);
+            resurrectedObject = std::shared_ptr<T>(object);
+            stopObject(object->shared_from_this());
+        }
 
-            if (! objectIsShutdown(object->state()))
+        auto links = object->links();
+
+        if (links.size() > 0)
+        {
+            if (! resurrectedObject) resurrectedObject = std::shared_ptr<T>(object);
+
+            auto linkedObjects = object->linkedObjects();
+            std::vector<std::unique_lock<Object>> locks;
+            std::vector<std::pair<OutputPort&, InputPort&>> ports;
+
+            locks.reserve(linkedObjects.size());
+            ports.reserve(links.size());
+
+            for (const auto link : links)
             {
-                LOGGER(debug, "Shutting down object in object deleter: ", *object);
-
-                resurrectedObject = std::shared_ptr<T>(object);
-                stopObject(object->shared_from_this());
+                ports.emplace_back(link->from, link->to);
             }
 
-            auto links = object->links();
-
-            if (links.size() > 0)
+            for (const auto& linked : linkedObjects)
             {
-                LOGGER(debug, "Unlinking object in object deleter: ", *object);
-
-                if (! resurrectedObject) resurrectedObject = std::shared_ptr<T>(object);
-
-                auto linkedObjects = object->linkedObjects();
-                std::vector<std::unique_lock<Object>> locks;
-                std::vector<std::pair<OutputPort&, InputPort&>> ports;
-
-                locks.reserve(linkedObjects.size());
-                ports.reserve(links.size());
-
-                for (const auto link : links)
-                {
-                    ports.emplace_back(link->from, link->to);
-                }
-
-                for (const auto& linked : linkedObjects)
-                {
-                    LOGGER(debug, "Getting lock on ", *linked);
-                    locks.emplace_back(*linked);
-                }
-
-                unlinkPorts(ports);
+                locks.emplace_back(*linked);
             }
-        }
-        catch (const std::exception& e)
-        {
-            LOGGER(error, "Caught exception when destroying object ", *object, ": ", e.what());
-        }
-        catch (...)
-        {
-            LOGGER(error, "Caught unknown exception when destroying object ", *object);
+
+            unlinkPorts(ports);
         }
 
         // Have to let the newly created shared_ptr delete the object
         if (! resurrectedObject)
         {
-            LOGGER(debug, "_destroyObject(): calling delete() on object pointer");
             delete object;
         }
     }

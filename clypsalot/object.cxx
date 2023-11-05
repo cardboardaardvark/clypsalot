@@ -1,9 +1,11 @@
 #include <atomic>
 #include <cassert>
 
+#include <clypsalot/catalog.hxx>
 #include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/module.hxx>
 #include <clypsalot/object.hxx>
 #include <clypsalot/port.hxx>
 #include <clypsalot/thread.hxx>
@@ -334,10 +336,16 @@ namespace Clypsalot
         }
     }
 
-    void Object::handleConfigure(const ObjectConfig&)
+    void Object::handleConfigure(const ObjectConfig& config)
     {
         assert(mutex.haveLock());
         assert(currentState == ObjectState::configuring);
+
+        for (const auto& [name, value] : config)
+        {
+            OBJECT_LOGGER(debug, "Setting value for property: ", name);
+            property(name).anyValue(value);
+        }
     }
 
     void Object::handleEndOfData() noexcept
@@ -368,6 +376,8 @@ namespace Clypsalot
             *this,
             config.name,
             config.type,
+            config.configurable,
+            config.required,
             config.publicMutable,
             config.initial
         );
@@ -610,18 +620,51 @@ namespace Clypsalot
         throw KeyError(makeString("No such output port: ", name), name);
     }
 
-    const std::vector<InputPort*>& Object::inputs() const noexcept
+    std::vector<std::string> Object::addOutputTypes()
     {
         assert(mutex.haveLock());
 
-        return inputPorts;
+        std::vector<std::string> types;
+
+        types.reserve(userOutputPortTypes.size());
+
+        for (const auto& [name, _] : userOutputPortTypes)
+        {
+            types.push_back(name);
+        }
+
+        return types;
+    }
+
+    OutputPort& Object::addOutput(const std::string& type, const std::string& name)
+    {
+        assert(mutex.haveLock());
+
+        OutputPort* output = nullptr;
+
+        if (! userOutputPortTypes.contains(type))
+        {
+            throw TypeError(makeString("Object does not support output type: ", type));
+        }
+
+        try
+        {
+            auto descriptor = portTypeCatalog().descriptor(type);
+            output = descriptor.makeOutput(name, *this);
+            return addOutput(output);
+        }
+        catch (...)
+        {
+            delete output;
+            throw;
+        }
     }
 
     OutputPort& Object::addOutput(OutputPort* output)
     {
         assert(mutex.haveLock());
 
-        OBJECT_LOGGER(trace, "Adding output: ", output->name);
+        OBJECT_LOGGER(trace, "Adding output: ", output->name, "=", output->type.name);
 
         if (! objectIsPreparing(currentState))
         {
@@ -635,6 +678,13 @@ namespace Clypsalot
 
         outputPorts.push_back(output);
         return *output;
+    }
+
+    const std::vector<InputPort*>& Object::inputs() const noexcept
+    {
+        assert(mutex.haveLock());
+
+        return inputPorts;
     }
 
     bool Object::hasInput(const std::string& name) noexcept
@@ -667,6 +717,46 @@ namespace Clypsalot
         throw KeyError(makeString("No such input port: ", name), name);
     }
 
+    std::vector<std::string> Object::addInputTypes()
+    {
+        assert(mutex.haveLock());
+
+        std::vector<std::string> types;
+
+        types.reserve(userInputPortTypes.size());
+
+        for (const auto& [name, _] : userInputPortTypes)
+        {
+            types.push_back(name);
+        }
+
+        return types;
+    }
+
+    InputPort& Object::addInput(const std::string& type, const std::string& name)
+    {
+        assert(mutex.haveLock());
+
+        InputPort* input = nullptr;
+
+        if (! userInputPortTypes.contains(type))
+        {
+            throw TypeError(makeString("Object does not support input type: ", type));
+        }
+
+        try
+        {
+            const auto& descriptor = portTypeCatalog().descriptor(type);
+            input = descriptor.makeInput(name, *this);
+            return addInput(input);
+        }
+        catch (...)
+        {
+            delete input;
+            throw;
+        }
+    }
+
     InputPort& Object::addInput(InputPort* input)
     {
         assert(mutex.haveLock());
@@ -676,7 +766,7 @@ namespace Clypsalot
             objectStateError(currentState);
         }
 
-        OBJECT_LOGGER(trace, "Adding input: ", input->name);
+        OBJECT_LOGGER(trace, "Adding input: ", input->name, "=", input->type.name);
 
         if (hasInput(input->name))
         {

@@ -12,6 +12,7 @@
 
 #pragma once
 
+#include <functional>
 #include <vector>
 #include <string>
 
@@ -21,6 +22,9 @@
 
 namespace Clypsalot
 {
+    using OutputPortConstructor = std::function<OutputPort* (const std::string& name, Object& parent)>;
+    using InputPortConstructor = std::function<InputPort* (const std::string& portName, Object& parent)>;
+
     struct PortType
     {
         const std::string& name;

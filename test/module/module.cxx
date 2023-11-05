@@ -22,13 +22,25 @@ namespace Clypsalot
 {
     static const std::initializer_list<PortTypeDescriptor> portTypeDescriptors
     {
-        { MTestPortType::typeName, MTestPortType::singleton },
+        {
+            MTestPortType::typeName,
+            MTestPortType::singleton,
+            [] (const std::string& name, Object& parent) { return new MTestOutputPort(name, parent); },
+            [] (const std::string& name, Object& parent) { return new MTestInputPort(name, parent); },
+        },
+        {
+            PTestPortType::typeName,
+            PTestPortType::singleton,
+            [] (const std::string& name, Object& parent) { return new PTestOutputPort(name, parent); },
+            [] (const std::string& name, Object& parent) { return new PTestInputPort(name, parent); },
+        },
     };
 
     static const std::initializer_list<ObjectDescriptor> objectDescriptors
     {
         { TestObject::kindName, TestObject::make },
         { ProcessingTestObject::kindName, ProcessingTestObject::make },
+        { FilterTestObject::kindName, FilterTestObject::make },
     };
 
     static const ModuleDescriptor moduleDescriptor

@@ -23,13 +23,15 @@ namespace Clypsalot
     struct ObjectDescriptor
     {
         const std::string& kind;
-        const ObjectConstructor constructor;
+        const ObjectConstructor make;
     };
 
     struct PortTypeDescriptor
     {
         const std::string& name;
         const PortType& instance;
+        const OutputPortConstructor makeOutput;
+        const InputPortConstructor makeInput;
     };
 
     struct ModuleDescriptor

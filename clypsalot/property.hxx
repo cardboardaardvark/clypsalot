@@ -37,6 +37,8 @@ namespace Clypsalot
     {
         const std::string name;
         const PropertyType type;
+        const bool configurable;
+        const bool required;
         const bool publicMutable;
         const std::any initial;
     };
@@ -47,6 +49,7 @@ namespace Clypsalot
     {
         friend Object;
 
+        public:
         using BooleanType = bool;
         using FileType = std::filesystem::path;
         using IntegerType = int;
@@ -54,6 +57,7 @@ namespace Clypsalot
         using SizeType = size_t;
         using StringType = std::string;
 
+        private:
         union Container
         {
             BooleanType boolean;
@@ -71,6 +75,9 @@ namespace Clypsalot
         protected:
         void set(const std::any& value);
         bool defined(const bool defined);
+        void enforcePublicMutable() const;
+        void enforceType(const PropertyType enforceType) const;
+        void enforceDefined() const;
         BooleanType& booleanRef();
         FileType& fileRef();
         IntegerType& integerRef();
@@ -81,24 +88,31 @@ namespace Clypsalot
         public:
         const std::string name;
         const PropertyType type;
+        const bool configurable;
+        const bool required;
         const bool publicMutable;
 
-        Property(const Lockable& parent, const std::string& name, const PropertyType type, const bool publicMutable, const std::any& initial = nullptr);
+        Property(const Lockable& parent, const std::string& name, const PropertyType type, const bool configurable, const bool required, const bool publicMutable, const std::any& initial = nullptr);
         Property(const Property&) = delete;
         ~Property();
         void operator=(const Property&) = delete;
-        bool defined();
-        BooleanType booleanValue();
+        bool defined() const;
+        BooleanType booleanValue() const;
         void booleanValue(const BooleanType value);
-        FileType fileValue();
+        FileType fileValue() const;
         void fileValue(const FileType& value);
-        IntegerType integerValue();
+        IntegerType integerValue() const;
         void integerValue(const IntegerType value);
-        RealType realValue();
+        RealType realValue() const;
         void realValue(const RealType value);
-        SizeType sizeValue();
+        SizeType sizeValue() const;
         void sizeValue(const SizeType value);
-        StringType stringValue();
+        StringType stringValue() const;
         void stringValue(const StringType& value);
+        std::any anyValue() const;
+        void anyValue(const std::any& value);
     };
+
+    std::string asString(const PropertyType type) noexcept;
+    std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept;
 }

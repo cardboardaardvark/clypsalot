@@ -21,7 +21,7 @@
 
 /// @brief The plain text name of a LogEvent source that will be used by the LOGGER and LLOGGER macros.
 #ifndef LOG_SOURCE
-#define LOG_SOURCE "Clypsalot"
+#define LOG_SOURCE "clypsalot"
 #endif
 
 /// @brief A convenience wrapper around the string version of the deliverLogEvent() function that

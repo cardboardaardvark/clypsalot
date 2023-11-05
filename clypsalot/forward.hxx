@@ -20,16 +20,20 @@
 
 #pragma once
 
+#include <string>
+
 namespace Clypsalot
 {
     class EventSender;
     class InputPort;
     class LogEngine;
+    enum class LogSeverity : uint_fast8_t;
     class Object;
     struct ObjectDescriptor;
     class OutputPort;
     class PortLink;
     struct PortTypeDescriptor;
 
+    std::string asString(const LogSeverity severity) noexcept;
     void scheduleObject(Object&);
 }

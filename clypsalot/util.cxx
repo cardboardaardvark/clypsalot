@@ -148,8 +148,10 @@ namespace Clypsalot
         anyConversionError(value, "file");
     }
 
-    bool stringToBool(const std::string& value)
+    bool stringToBool(std::string value)
     {
+        std::transform(value.cbegin(), value.cend(), value.begin(), [](const unsigned char c) { return std::tolower(c); });
+
         if (value == "true") return true;
         if (value == "yes") return true;
         if (value == "1") return true;

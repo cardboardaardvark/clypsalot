@@ -48,7 +48,9 @@ TEST_CASE(typeName_function)
 TEST_CASE(stringConversions)
 {
     BOOST_CHECK(stringToBool("true") == true);
+    BOOST_CHECK(stringToBool("TrUe") == true);
     BOOST_CHECK(stringToBool("false") == false);
+    BOOST_CHECK(stringToBool("FAlse") == false);
     BOOST_CHECK(stringToFloat("0") == 0.);
     BOOST_CHECK(stringToInt("-50") == -50);
     BOOST_CHECK(stringToSize("20") == 20);

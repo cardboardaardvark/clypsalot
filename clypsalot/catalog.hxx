@@ -41,6 +41,7 @@ namespace Clypsalot
         void add(const PortTypeDescriptor& descriptor);
         std::vector<std::string> names() const noexcept;
         const PortType& instance(const std::string& name) const;
+        const PortTypeDescriptor& descriptor(const std::string& name) const;
     };
 
     struct ObjectCatalogEntryAddedEvent : Event

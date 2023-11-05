@@ -24,11 +24,12 @@ namespace Clypsalot
 {
     const std::string TestObject::kindName = "Test::Object";
     const std::string ProcessingTestObject::kindName = "Test::Processing Object";
+    const std::string FilterTestObject::kindName = "Test::Filter Object";
     static const std::string processCounterPropertyName = "Process Counter";
     static const std::string maxProcessPropertyName = "Max Process";
     static const PropertyList processingProperties = {
-        { processCounterPropertyName, PropertyType::size, false, 0 },
-        { maxProcessPropertyName, PropertyType::size, true, nullptr },
+        { processCounterPropertyName, PropertyType::size, false, false, false, 0 },
+        { maxProcessPropertyName, PropertyType::size, true, false, true, nullptr },
     };
 
     std::shared_ptr<TestObject> TestObject::make()
@@ -64,6 +65,9 @@ namespace Clypsalot
         std::unique_lock lock(*this);
 
         addProperties(processingProperties);
+
+        userOutputPortTypes[PTestPortType::typeName] = true;
+        userInputPortTypes[PTestPortType::typeName] = true;
 
         processCounterProperty = &propertySizeRef(processCounterPropertyName);
         maxProcessProperty = &propertySizeRef(maxProcessPropertyName);
@@ -114,5 +118,19 @@ namespace Clypsalot
         }
 
         return ObjectProcessResult::finished;
+    }
+
+    std::shared_ptr<FilterTestObject> FilterTestObject::make()
+    {
+        return _makeObject<FilterTestObject>(kindName);
+    }
+
+    FilterTestObject::FilterTestObject(const std::string& kind) :
+        TestObject(kind)
+    {
+        std::scoped_lock lock(*this);
+
+        addOutput<MTestOutputPort>("output");
+        addInput<MTestInputPort>("input");
     }
 }

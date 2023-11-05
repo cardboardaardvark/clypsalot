@@ -47,7 +47,7 @@ namespace Clypsalot
     std::filesystem::path anyToPath(const std::any& value);
     size_t anyToSize(const std::any& value);
     std::string anyToString(const std::any& vaue);
-    bool stringToBool(const std::string& value);
+    bool stringToBool(std::string value);
     float stringToFloat(const std::string& value);
     int stringToInt(const std::string& value);
     size_t stringToSize(const std::string& value);

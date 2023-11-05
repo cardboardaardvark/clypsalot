@@ -67,6 +67,15 @@ namespace Clypsalot
         return catalogEntries.at(name)->instance;
     }
 
+    const PortTypeDescriptor& PortTypeCatalog::descriptor(const std::string& name) const
+    {
+        std::unique_lock lock(*this);
+
+        if (! catalogEntries.contains(name)) throw KeyError(makeString("No known type type name: ", name), name);
+
+        return *catalogEntries.at(name);
+    }
+
     ObjectCatalogEntryAddedEvent::ObjectCatalogEntryAddedEvent(const ObjectDescriptor& newEntry) :
         Event(),
         entry(newEntry)
@@ -114,7 +123,7 @@ namespace Clypsalot
             throw KeyError(makeString("Unknown object kind: ", kind), kind);
         }
 
-        return catalogEntries.at(kind)->constructor();
+        return catalogEntries.at(kind)->make();
     }
 
     PortTypeCatalog& portTypeCatalog()

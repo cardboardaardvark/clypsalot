@@ -15,6 +15,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <initializer_list>
 #include <string>
 #include <thread>
 #include <vector>
@@ -39,6 +40,18 @@ namespace Clypsalot {
         warn,
         error,
         fatal,
+    };
+
+    static std::initializer_list<std::string> logSeverityNames =
+    {
+        asString(LogSeverity::trace),
+        asString(LogSeverity::debug),
+        asString(LogSeverity::verbose),
+        asString(LogSeverity::info),
+        asString(LogSeverity::notice),
+        asString(LogSeverity::warn),
+        asString(LogSeverity::error),
+        asString(LogSeverity::fatal),
     };
 
     /// @brief All of the data associated with a log message.

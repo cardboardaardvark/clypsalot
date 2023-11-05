@@ -54,4 +54,13 @@ namespace Clypsalot
         ProcessingTestObject(const std::string& kind);
         virtual ObjectProcessResult process() override;
     };
+
+    class FilterTestObject : public TestObject
+    {
+        public:
+        static const std::string kindName;
+
+        static std::shared_ptr<FilterTestObject> make();
+        FilterTestObject(const std::string& kind);
+    };
 }

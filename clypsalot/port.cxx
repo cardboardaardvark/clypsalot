@@ -188,7 +188,7 @@ namespace Clypsalot
             for (auto object : startObjects)
             {
                 LOGGER(trace, "Starting object that was paused during linking: ", *object);
-                object->start();
+                startObject(object);
             }
         });
 
@@ -223,7 +223,7 @@ namespace Clypsalot
 
             for (const auto& object : startObjects)
             {
-                object->start();
+                startObject(object);
             }
         });
 
