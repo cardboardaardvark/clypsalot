@@ -1,6 +1,8 @@
 #include <clypsalot/logging.hxx>
 #include <clypsalot/network.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/module.hxx>
+#include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
