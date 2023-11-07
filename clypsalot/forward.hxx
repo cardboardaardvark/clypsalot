@@ -20,20 +20,49 @@
 
 #pragma once
 
+#include <any>
+#include <functional>
+#include <memory>
 #include <string>
+#include <vector>
 
 namespace Clypsalot
 {
+    class Event;
     class EventSender;
     class InputPort;
+    class Lockable;
     class LogEngine;
     enum class LogSeverity : uint_fast8_t;
+    struct MessageProcessor;
+    struct ModuleDescriptor;
     class Object;
+    struct ObjectCatalogEntryAddedEvent;
     struct ObjectDescriptor;
+    enum class ObjectState : uint_fast8_t;
+    struct ObjectStateChangedEvent;
     class OutputPort;
     class PortLink;
+    struct PortType;
     struct PortTypeDescriptor;
+    class Property;
+    struct PropertyConfig;
+    class SharedLockable;
+    class Subscription;
+
+    // TODO Figure out if this should go into something like types.h or if it is appropriate here
+    using SharedObject = std::shared_ptr<Object>;
+
+    using InputPortConstructor = std::function<InputPort* (const std::string& portName, Object& parent)>;
+    using OutputPortConstructor = std::function<OutputPort* (const std::string& name, Object& parent)>;
+    using ObjectConfig = std::vector<std::tuple<std::string, std::any>>;
+    using ObjectConstructor = std::function<SharedObject ()>;
+    using PropertyList = std::initializer_list<PropertyConfig>;
 
     std::string asString(const LogSeverity severity) noexcept;
+    PortLink* linkPorts(OutputPort& output, InputPort& input);
+    std::vector<PortLink*> linkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     void scheduleObject(Object&);
+    void unlinkPorts(OutputPort& output, InputPort& input);
+    void unlinkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
 }

@@ -2,7 +2,7 @@
 # the features actually used
 cmake_minimum_required(VERSION 3.25.1)
 
-if (NOT DEFINED CMAKE_BUILD_TYPE)
+if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
@@ -55,7 +55,7 @@ include_directories(SYSTEM ${CMAKE_SOURCE_DIR})
 
 # The trailing directory seperator is intentionally included as it is used by the logging system
 # to remove the path to the project directory from the filename output.
-add_compile_definitions(CLYPSALOT_PROJECT_DIR="${CMAKE_SOURCE_DIR}/")
+add_compile_definitions(CLYPSALOT_VERSION="${CMAKE_PROJECT_VERSION}" CLYPSALOT_PROJECT_DIR="${CMAKE_SOURCE_DIR}/")
 
 include(${CLYPSALOT_CMAKE_DIR}/dependencies.cmake)
 

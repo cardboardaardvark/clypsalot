@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include <any>
 #include <condition_variable>
 #include <cstdint>
 #include <functional>
@@ -21,17 +20,10 @@
 
 #include <clypsalot/event.hxx>
 #include <clypsalot/forward.hxx>
-#include <clypsalot/port.hxx>
-#include <clypsalot/property.hxx>
-#include <clypsalot/thread.hxx>
 
 /// @file
 namespace Clypsalot
 {
-    using ObjectConfig = std::vector<std::tuple<std::string, std::any>>;
-    using SharedObject = std::shared_ptr<Object>;
-    using ObjectConstructor = std::function<SharedObject ()>;
-
     enum class ObjectState : uint_fast8_t
     {
         configuring,
@@ -251,9 +243,9 @@ namespace Clypsalot
     bool objectIsBusy(const ObjectState state) noexcept;
     bool objectIsPreparing(const ObjectState state) noexcept;
     bool pauseObject(const SharedObject& object);
-    void startObject(const SharedObject& object);
+    bool startObject(const SharedObject& object);
     void scheduleObject(const SharedObject object);
-    void stopObject(const SharedObject& object);
+    bool stopObject(const SharedObject& object);
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept;
     std::string asString(const Object& object) noexcept;
     std::ostream& operator<<(std::ostream& os, const Object& object) noexcept;

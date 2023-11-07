@@ -14,6 +14,9 @@
 
 #include <QHeaderView>
 
+#include <clypsalot/module.hxx>
+#include <clypsalot/object.hxx>
+
 #include "createobjectdialog.hxx"
 #include "data.hxx"
 #include "logging.hxx"
@@ -152,12 +155,11 @@ void PortEditor::removePortClicked()
     portTable->removeRow(selectedRow);
 }
 
-CreateObjectDialog::CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor, const QPoint& position) :
+CreateObjectDialog::CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor) :
     QDialog(parent),
     ui(new Ui::CreateObjectDialog),
     descriptor(descriptor),
-    object(descriptor.make()),
-    position(position)
+    object(descriptor.make())
 {
     LOGGER(trace, "init CreateObjectDialog for ", descriptor.kind);
 

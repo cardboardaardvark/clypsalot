@@ -14,6 +14,7 @@
 
 #include <clypsalot/error.hxx>
 #include <clypsalot/property.hxx>
+#include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
 namespace Clypsalot
@@ -108,6 +109,21 @@ namespace Clypsalot
     void Property::enforceDefined() const
     {
         if (! hasValue) throw UndefinedError(makeString("Property ", name, " does not have a value"));
+    }
+
+    std::string Property::asString() const
+    {
+        assert(parent.haveLock());
+
+        switch (type)
+        {
+            case PropertyType::boolean: return makeString(booleanValue());
+            case PropertyType::file: return fileValue();
+            case PropertyType::integer: return makeString(integerValue());
+            case PropertyType::real: return makeString(realValue());
+            case PropertyType::size: return makeString(sizeValue());
+            case PropertyType::string: return stringValue();
+        }
     }
 
     Property::BooleanType& Property::booleanRef()

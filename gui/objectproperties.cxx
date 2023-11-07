@@ -12,6 +12,8 @@
 
 #include <QLineEdit>
 
+#include <clypsalot/property.hxx>
+
 #include "logging.hxx"
 #include "objectproperties.hxx"
 

@@ -91,16 +91,16 @@
        </item>
       </layout>
      </widget>
+     <widget class="PortEditor" name="inputs">
+      <attribute name="title">
+       <string>Inputs</string>
+      </attribute>
+     </widget>
      <widget class="PortEditor" name="outputs">
       <attribute name="title">
        <string>Outputs</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_2"/>
-     </widget>
-     <widget class="PortEditor" name="inputs">
-      <attribute name="title">
-       <string>Inputs</string>
-      </attribute>
      </widget>
     </widget>
    </item>

@@ -14,13 +14,30 @@
    <string>Clypsalot</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QGridLayout" name="gridLayout_2">
-    <item row="0" column="0">
+   <layout class="QVBoxLayout" name="verticalLayout_2" stretch="0,1">
+    <item>
      <layout class="QHBoxLayout" name="buttonLayout">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetDefaultConstraint</enum>
+      </property>
       <item>
        <widget class="QPushButton" name="startButton">
         <property name="text">
          <string>Start</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="pauseButton">
+        <property name="text">
+         <string>Pause</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="stopButton">
+        <property name="text">
+         <string>Stop</string>
         </property>
        </widget>
       </item>
@@ -39,14 +56,8 @@
       </item>
      </layout>
     </item>
-    <item row="1" column="0">
+    <item>
      <widget class="QSplitter" name="splitter">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-        <horstretch>0</horstretch>
-        <verstretch>1</verstretch>
-       </sizepolicy>
-      </property>
       <property name="orientation">
        <enum>Qt::Horizontal</enum>
       </property>
@@ -112,7 +123,7 @@
         </attribute>
        </widget>
       </widget>
-      <widget class="QScrollArea" name="workAreaScrollArea">
+      <widget class="WorkArea" name="workArea">
        <property name="sizePolicy">
         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
          <horstretch>1</horstretch>
@@ -125,28 +136,9 @@
        <property name="horizontalScrollBarPolicy">
         <enum>Qt::ScrollBarAlwaysOn</enum>
        </property>
-       <property name="widgetResizable">
-        <bool>true</bool>
+       <property name="dragMode">
+        <enum>QGraphicsView::RubberBandDrag</enum>
        </property>
-       <widget class="WorkArea" name="workArea">
-        <property name="geometry">
-         <rect>
-          <x>0</x>
-          <y>0</y>
-          <width>924</width>
-          <height>529</height>
-         </rect>
-        </property>
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Ignored" vsizetype="Ignored">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="acceptDrops">
-         <bool>true</bool>
-        </property>
-       </widget>
       </widget>
      </widget>
     </item>
@@ -171,24 +163,9 @@
     <property name="title">
      <string>Window</string>
     </property>
-    <addaction name="actionUndoHistory"/>
     <addaction name="actionLogMessages"/>
    </widget>
-   <widget class="QMenu" name="menuEdit">
-    <property name="title">
-     <string>Edit</string>
-    </property>
-   </widget>
-   <widget class="QMenu" name="menuWorkArea">
-    <property name="title">
-     <string>Work Area</string>
-    </property>
-    <addaction name="actionSizeToContents"/>
-    <addaction name="actionRedraw"/>
-   </widget>
    <addaction name="menuFile"/>
-   <addaction name="menuEdit"/>
-   <addaction name="menuWorkArea"/>
    <addaction name="menuWindow"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -232,15 +209,19 @@
  </widget>
  <customwidgets>
   <customwidget>
-   <class>WorkArea</class>
-   <extends>QWidget</extends>
-   <header>gui/workarea.hxx</header>
-   <container>1</container>
-  </customwidget>
-  <customwidget>
    <class>Catalog</class>
    <extends>QTreeWidget</extends>
    <header>gui/catalog.hxx</header>
+  </customwidget>
+  <customwidget>
+   <class>WorkArea</class>
+   <extends>QGraphicsView</extends>
+   <header>gui/workarea.hxx</header>
+   <slots>
+    <slot>startObjects()</slot>
+    <slot>pauseObjects()</slot>
+    <slot>stopObjects()</slot>
+   </slots>
   </customwidget>
  </customwidgets>
  <resources/>
@@ -278,57 +259,9 @@
    </hints>
   </connection>
   <connection>
-   <sender>actionUndoHistory</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>showUndoHistoryWindow()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>610</x>
-     <y>319</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionSizeToContents</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>sizeWorkAreaToContents()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>610</x>
-     <y>319</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
-   <sender>actionRedraw</sender>
-   <signal>triggered()</signal>
-   <receiver>MainWindow</receiver>
-   <slot>redrawWorkArea()</slot>
-   <hints>
-    <hint type="sourcelabel">
-     <x>-1</x>
-     <y>-1</y>
-    </hint>
-    <hint type="destinationlabel">
-     <x>610</x>
-     <y>319</y>
-    </hint>
-   </hints>
-  </connection>
-  <connection>
    <sender>startButton</sender>
    <signal>clicked()</signal>
-   <receiver>MainWindow</receiver>
+   <receiver>workArea</receiver>
    <slot>startObjects()</slot>
    <hints>
     <hint type="sourcelabel">
@@ -336,8 +269,40 @@
      <y>44</y>
     </hint>
     <hint type="destinationlabel">
-     <x>610</x>
-     <y>319</y>
+     <x>742</x>
+     <y>336</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>pauseButton</sender>
+   <signal>clicked()</signal>
+   <receiver>workArea</receiver>
+   <slot>pauseObjects()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>135</x>
+     <y>44</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>742</x>
+     <y>336</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>stopButton</sender>
+   <signal>clicked()</signal>
+   <receiver>workArea</receiver>
+   <slot>stopObjects()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>221</x>
+     <y>44</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>742</x>
+     <y>336</y>
     </hint>
    </hints>
   </connection>
@@ -346,7 +311,6 @@
   <slot>showLogWindow()</slot>
   <slot>showUndoHistoryWindow()</slot>
   <slot>sizeWorkAreaToContents()</slot>
-  <slot>redrawWorkArea()</slot>
   <slot>startObjects()</slot>
  </slots>
 </ui>

@@ -12,9 +12,9 @@
 
 #pragma once
 
+#include <QApplication>
+#include <QCommandLineParser>
 #include <QObject>
-
-#include <clypsalot/catalog.hxx>
 
 #include "logwindow.hxx"
 #include "mainwindow.hxx"

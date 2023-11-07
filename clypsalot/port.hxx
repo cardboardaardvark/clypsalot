@@ -12,7 +12,6 @@
 
 #pragma once
 
-#include <functional>
 #include <vector>
 #include <string>
 
@@ -22,9 +21,6 @@
 
 namespace Clypsalot
 {
-    using OutputPortConstructor = std::function<OutputPort* (const std::string& name, Object& parent)>;
-    using InputPortConstructor = std::function<InputPort* (const std::string& portName, Object& parent)>;
-
     struct PortType
     {
         const std::string& name;
@@ -46,8 +42,8 @@ namespace Clypsalot
         PortLink(const PortLink&) = delete;
         virtual ~PortLink() = default;
         void operator=(const PortLink&) = delete;
-        bool operator==(const PortLink& other);
-        bool operator!=(const PortLink& other);
+        bool operator==(const PortLink& rhs);
+        bool operator!=(const PortLink& rhs);
         void setEndOfData() noexcept;
         bool endOfData() const noexcept;
     };
@@ -68,9 +64,10 @@ namespace Clypsalot
         Port(const Port&) = delete;
         virtual ~Port();
         void operator=(const Port&) = delete;
-        bool operator==(const Port& other);
-        bool operator!=(const Port& other);
+        bool operator==(const Port& rhs);
+        bool operator!=(const Port& rhs);
         const std::vector<PortLink*>& links() const noexcept;
+        bool hasLink(const PortLink* link) const noexcept;
         void addLink(PortLink* link);
         void removeLink(const PortLink* link);
     };
@@ -99,6 +96,8 @@ namespace Clypsalot
     void unlinkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     std::string asString(const OutputPort& port) noexcept;
     std::string asString(const InputPort& port) noexcept;
+    std::string asString(const PortLink& link) noexcept;
     std::ostream& operator<<(std::ostream& os, const OutputPort& port) noexcept;
     std::ostream& operator<<(std::ostream& os, const InputPort& port) noexcept;
+    std::ostream& operator<<(std::ostream&os, const PortLink& link) noexcept;
 }

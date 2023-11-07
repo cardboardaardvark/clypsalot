@@ -16,6 +16,8 @@
 #include <map>
 #include <vector>
 
+#include <clypsalot/event.hxx>
+#include <clypsalot/forward.hxx>
 #include <clypsalot/object.hxx>
 #include <clypsalot/thread.hxx>
 

@@ -1,126 +1,121 @@
+/* Copyright 2023 Tyler Riddle
+ *
+ * This file is part of Clypsalot. Clypsalot is free software: you can redistribute it and/or modify it under the terms
+ * of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version. Clypsalot is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Clypsalot. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
-#include <QFrame>
-#include <QHBoxLayout>
-#include <QLabel>
-#include <QMimeData>
-#include <QPainter>
-#include <QVBoxLayout>
-#include <QWidget>
+#include <QGraphicsGridLayout>
+#include <QGraphicsLinearLayout>
+#include <QGraphicsObject>
 
-#include <clypsalot/object.hxx>
+#include <clypsalot/forward.hxx>
 
 #include "forward.hxx"
+#include "workarea.hxx"
 
-using ObjectId = size_t;
-
-static const QString objectMimeFormat("application/x-clypsalot-object");
-static const QString outputPortMimeFormat("application/x-clypsalot-output-port");
-
-class PortConnectionPoint : public QWidget
+class ObjectPort : public WorkAreaWidget
 {
-    protected:
-    virtual void paintEvent(QPaintEvent* event) override;
+    Q_OBJECT
+
+    WorkAreaLabelWidget* nameLabel = nullptr;
+    QList<PortConnection*> connections;
 
     public:
-    explicit PortConnectionPoint(QWidget* parent = nullptr);
+    Object* const parentObject;
+
+    ObjectPort(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
+    const QString name();
+    virtual QPointF connectPos() = 0;
+    void addConnection(PortConnection* connection);
+    void updateConnectionPositions();
 };
 
-class Port : public QFrame
+class ObjectInput : public ObjectPort
+{
+    Q_OBJECT
+
+    public:
+    ObjectInput(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
+    int type() const override;
+    QPointF connectPos() override;
+};
+
+class ObjectOutput : public ObjectPort
 {
     Q_OBJECT
 
     protected:
-    QHBoxLayout* mainLayout = nullptr;
-    QLabel* nameLabel = nullptr;
-    PortConnectionPoint* connectPoint = nullptr;
-    QVBoxLayout* connectPointLayout = nullptr;
-
-    explicit Port(const QString& name, QWidget* parent = nullptr);
+    void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
+    void mouseMoveEvent(QGraphicsSceneMouseEvent* event) override;
+    void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override;
 
     public:
-    QPoint globalConnectPointPosition();
-    Object* parentObject();
-    QString name();
+    ObjectOutput(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
+    QPointF connectPos() override;
+    void createConnection(ObjectInput* to);
 };
 
-class InputPort : public Port
-{
-    protected:
-    virtual void dragEnterEvent(QDragEnterEvent* event) override;
-    virtual void dropEvent(QDropEvent* event) override;
-
-    public:
-    InputPort(const QString& name, QWidget* parent = nullptr);
-};
-
-class OutputPort : public Port
-{
-    QPoint dragStart;
-
-    protected:
-    virtual void mousePressEvent(QMouseEvent* event) override;
-    virtual void mouseMoveEvent(QMouseEvent* event) override;
-
-    public:
-    OutputPort(const QString& name, QWidget* parent = nullptr);
-};
-
-class Object : public QWidget
+class PortConnection : QGraphicsWidget
 {
     Q_OBJECT
 
-    QHBoxLayout* mainLayout = nullptr;
-    QVBoxLayout* inputLayout = nullptr;
-    QVBoxLayout* outputLayout = nullptr;
-    QFrame* infoFrame = nullptr;
-    QVBoxLayout* infoLayout = nullptr;
-    QLabel* kindLabel = nullptr;
-    QLabel* stateLabel = nullptr;
+    ObjectOutput* const from;
+    ObjectInput* const to;
+    WorkAreaConnectionLine line;
+
+    public:
+    PortConnection(ObjectOutput* const from, ObjectInput* const to, QGraphicsObject* parent = nullptr);
+    void updatePosition();
+};
+
+class ObjectInfo : public WorkAreaWidget
+{
+    Q_OBJECT
+
+    public:
+    WorkAreaLabelWidget* const kind;
+    WorkAreaLabelWidget* const state;
+
+    explicit ObjectInfo(QGraphicsItem* parent = nullptr);
+};
+
+class Object : public WorkAreaWidget
+{
+    Q_OBJECT
+
+    ObjectInfo* info;
+    std::map<QString, WorkAreaLabelWidget*> m_propertyValues;
     std::vector<std::shared_ptr<Clypsalot::Subscription>> subscriptions;
-    QPoint dragStartPoint;
-    bool dragInProgress = false;
 
-    void addPorts();
-    void addOutput(const QString& name);
-    void addInput(const QString& name);
+    protected:
     void handleEvent(const Clypsalot::ObjectStateChangedEvent& event);
-    virtual void mousePressEvent(QMouseEvent* event) override;
-    virtual void mouseMoveEvent(QMouseEvent* event) override;
-    void dragStart();
-
-    protected Q_SLOTS:
-    void dragDestroyed();
-    void updateState(const Clypsalot::ObjectState newState);
-
-    public:
-    const ObjectId id;
-    const Clypsalot::SharedObject object;
-
-    explicit Object(const size_t id, const Clypsalot::SharedObject& object, QWidget *parent = nullptr);
-    QPoint& dragStartPosition();
-    void dragEnd();
+    void initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayout* outputsLayout, QGraphicsGridLayout* propertiesLayout);
+    QVariant itemChange(const GraphicsItemChange change, const QVariant& value) override;
+    void updatePortConnectionPositions();
 
     Q_SIGNALS:
-    void stateChanged(const Clypsalot::ObjectState newState);
-};
+    void stateChanged(Clypsalot::ObjectState state);
+    void propertyValues(const QList<std::pair<QString, QString>>& values);
 
-class ObjectMimeData : public QMimeData
-{
-    Q_OBJECT
-
-    public:
-    Object* const object;
-
-    ObjectMimeData(Object* const object);
-};
-
-class OutputPortMimeData : public QMimeData
-{
-    Q_OBJECT
+    protected Q_SLOTS:
+    void updateState(const Clypsalot::ObjectState state);
+    void updateProperties(const QList<std::pair<QString, QString>>& values);
 
     public:
-    OutputPort* const port;
+    const Clypsalot::SharedObject object;
 
-    OutputPortMimeData(OutputPort* const port);
+    Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent = nullptr);
+
+    public Q_SLOTS:
+    void start();
+    void pause();
+    void stop();
 };

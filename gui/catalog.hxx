@@ -16,7 +16,7 @@
 #include <QString>
 #include <QTreeWidgetItem>
 
-#include <clypsalot/catalog.hxx>
+#include <clypsalot/forward.hxx>
 
 static const int catalogTopLevelItemType = QTreeWidgetItem::UserType;
 static const int catalogObjectItemType = catalogTopLevelItemType + 1;
@@ -43,8 +43,8 @@ class CatalogMimeData : public QMimeData
     Q_OBJECT
 
     public:
-    const CatalogEntryItem& entry;
-    CatalogMimeData(const CatalogEntryItem& entry, const QString& title);
+    const CatalogEntryItem* const entry;
+    CatalogMimeData(const CatalogEntryItem* const entry, const QString& title);
 };
 
 class Catalog : public QTreeWidget

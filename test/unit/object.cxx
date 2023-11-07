@@ -12,6 +12,7 @@
 
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/property.hxx>
 #include <clypsalot/util.hxx>
 
 #include "test/lib/test.hxx"
@@ -22,8 +23,8 @@ using namespace Clypsalot;
 TEST_MAIN_FUNCTION
 
 static PropertyList propertyList = {
-    { "property 1", PropertyType::boolean, true, nullptr },
-    { "property 2", PropertyType::string, false, "initial value" },
+    { "property 1", PropertyType::boolean, true, true, true, nullptr },
+    { "property 2", PropertyType::string, false, false, false, "initial value" },
 };
 
 TEST_CASE(Object_properties)
@@ -46,6 +47,8 @@ TEST_CASE(Object_properties)
         BOOST_CHECK(object->hasProperty(config.name));
         BOOST_CHECK(property.name == config.name);
         BOOST_CHECK(property.type == config.type);
+        BOOST_CHECK(property.configurable == config.configurable);
+        BOOST_CHECK(property.required == config.required);
         BOOST_CHECK(property.publicMutable == config.publicMutable);
         BOOST_CHECK(property.defined() != (config.initial.type() == typeid(nullptr)));
 

@@ -13,3 +13,6 @@
 #pragma once
 
 class Object;
+class ObjectInput;
+class ObjectOutput;
+class PortConnection;

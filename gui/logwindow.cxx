@@ -10,7 +10,8 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-#include <QRegularExpressionValidator>
+#include <cassert>
+
 #include <QScrollBar>
 
 #include <clypsalot/error.hxx>
@@ -28,7 +29,25 @@ LogWindowDestination::LogWindowDestination(const Clypsalot::LogSeverity severity
 // This method could be called by any thread
 void LogWindowDestination::handleLogEvent(const Clypsalot::LogEvent& event) noexcept
 {
-    Q_EMIT newMessage(QString::fromStdString(Clypsalot::asString(event)));
+    assert(mutex.haveSharedLock());
+
+    std::scoped_lock lock(queueMutex);
+
+    eventQueue.push_back(event);
+
+    if (needToSignal)
+    {
+        Q_EMIT checkMessages();
+        needToSignal = false;
+    }
+}
+
+void LogWindowDestination::getEvents(std::list<Clypsalot::LogEvent>& list)
+{
+    std::scoped_lock lock(queueMutex);
+
+    list = std::move(eventQueue);
+    needToSignal = true;
 }
 
 LogWindow::LogWindow(QWidget *parent) :
@@ -40,7 +59,7 @@ LogWindow::LogWindow(QWidget *parent) :
 
     updateMaxMessages();
     initLogSeverities();
-    connect(&destination, SIGNAL(newMessage(const QString&)), ui->logMessages, SLOT(appendPlainText(const QString&)));
+    connect(&destination, SIGNAL(checkMessages()), this, SLOT(updateMessages()), Qt::QueuedConnection);
 }
 
 LogWindow::~LogWindow()
@@ -74,6 +93,24 @@ void LogWindow::setSeverity(const QString& severityName)
     catch (...)
     {
         FATAL_ERROR("Unknown exception when setting log severity");
+    }
+}
+
+void LogWindow::updateMessages()
+{
+    std::list<Clypsalot::LogEvent> events;
+    destination.getEvents(events);
+    auto size = events.size();
+    auto maxMessages = ui->maxMessages->sizeValue();
+    size_t startAt = 0;
+    size_t i = 0;
+
+    if (size > maxMessages) startAt = size - maxMessages;
+
+    for (const auto& event : events)
+    {
+        if (i >= startAt) ui->logMessages->appendPlainText(makeQString(event));
+        i++;
     }
 }
 

@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.5)
 
-project(clypsalot-gui VERSION ${CMAKE_PROJECT_VERSION} LANGUAGES CXX)
+project(clypsalot-gui VERSION 0.0.0 LANGUAGES CXX)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -30,7 +30,7 @@ qt_add_executable(
     ${PROJECT_SOURCES}
 )
 
-target_compile_definitions(clypsalot-gui PRIVATE QT_NO_KEYWORDS)
+target_compile_definitions(clypsalot-gui PRIVATE QT_NO_KEYWORDS CLYPSALOT_GUI_VERSION="${PROJECT_VERSION}")
 
 target_link_libraries(
     clypsalot-gui PRIVATE

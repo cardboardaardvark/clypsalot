@@ -187,7 +187,7 @@ namespace Clypsalot
 
         for (const auto& managed : managedObjects)
         {
-            LOGGER(debug, "Stopping object: ", *managed.object);
+            LOGGER(trace, "Stopping object: ", *managed.object);
             std::unique_lock objectLock(*managed.object);
             stopObject(managed.object);
         }

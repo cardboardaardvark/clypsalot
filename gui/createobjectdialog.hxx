@@ -20,8 +20,7 @@
 #include <QPushButton>
 #include <QVBoxLayout>
 
-#include <clypsalot/module.hxx>
-#include <clypsalot/object.hxx>
+#include <clypsalot/forward.hxx>
 
 namespace Ui {
     class CreateObjectDialog;
@@ -77,9 +76,8 @@ class CreateObjectDialog : public QDialog
     public:
     const Clypsalot::ObjectDescriptor& descriptor;
     const Clypsalot::SharedObject object;
-    const QPoint position;
 
-    CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor, const QPoint& position);
+    CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor);
     ~CreateObjectDialog();
     Clypsalot::ObjectConfig config();
     std::vector<std::pair<QString, QString>> outputs();

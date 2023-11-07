@@ -15,6 +15,8 @@
 #include <exception>
 #include <string>
 
+#include <clypsalot/forward.hxx>
+
 /// @file
 namespace Clypsalot
 {
@@ -35,6 +37,14 @@ namespace Clypsalot
         /// @endcond
         virtual ~Error() = default;
         virtual const char* what() const noexcept override;
+    };
+
+    struct DuplicateLinkError : public Error
+    {
+        const OutputPort& from;
+        const InputPort& to;
+
+        DuplicateLinkError(const OutputPort& from, const InputPort& to);
     };
 
     struct ImmutableError : public Error
@@ -65,6 +75,27 @@ namespace Clypsalot
         MutexUnlockError(const std::string& message);
     };
 
+    struct ObjectStateChangeError : public Error
+    {
+        const SharedObject object;
+        const ObjectState oldState;
+        const ObjectState newState;
+
+        ObjectStateChangeError(const SharedObject& object, const ObjectState oldState, const ObjectState newState);
+    };
+
+    /**
+     * @brief Exception for when an operation is invalid given the current Object state
+     * @ref ObjectState "state".
+     */
+    struct ObjectStateError : public Error
+    {
+        const SharedObject object;
+        const ObjectState state;
+
+        ObjectStateError(const SharedObject& object, const ObjectState state, const std::string& errorMessage);
+    };
+
     /**
      * @brief A generic error for problems that arrise at runtime.
      */
@@ -73,15 +104,6 @@ namespace Clypsalot
         /// @cond NO_DOCUMENT
         RuntimeError(const std::string& errorMessage);
         /// @endcond
-    };
-
-    /**
-     * @brief Exception for when an operation is invalid given the current Object
-     * @ref ObjectState "state".
-     */
-    struct StateError : public Error
-    {
-        StateError(const std::string& errorMessage);
     };
 
     struct TypeError : public Error

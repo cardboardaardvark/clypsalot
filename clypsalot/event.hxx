@@ -22,7 +22,6 @@
 #include <clypsalot/error.hxx>
 #include <clypsalot/forward.hxx>
 #include <clypsalot/message.hxx>
-#include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
 /// @file

@@ -15,6 +15,7 @@
 #include <thread>
 
 #include <clypsalot/error.hxx>
+#include <clypsalot/object.hxx>
 #include <clypsalot/util.hxx>
 
 /// @file
@@ -35,6 +36,12 @@ namespace Clypsalot
         return message.c_str();
     }
 
+    DuplicateLinkError::DuplicateLinkError(const OutputPort& from, const InputPort& to) :
+        Error("Ports are already linked"),
+        from(from),
+        to(to)
+    { }
+
     ImmutableError::ImmutableError(const std::string& errorMessage) :
         Error(errorMessage)
     { }
@@ -54,15 +61,24 @@ namespace Clypsalot
         Error(errorMessage)
     { }
 
+    ObjectStateChangeError::ObjectStateChangeError(const SharedObject& object, const ObjectState oldState, const ObjectState newState) :
+        Error(makeString("State change is invalid: ", formatStateChange(oldState, newState))),
+        object(object),
+        oldState(oldState),
+        newState(newState)
+    { }
+
+    ObjectStateError::ObjectStateError(const SharedObject& object, const ObjectState state, const std::string& errorMessage) :
+        Error(errorMessage),
+        object(object),
+        state(state)
+    { }
+
     /// @cond NO_DOCUMENT
     RuntimeError::RuntimeError(const std::string& errorMessage) :
         Error(errorMessage)
     { }
     /// @endcond
-
-    StateError::StateError(const std::string& errorMessage) :
-        Error(errorMessage)
-    { }
 
     TypeError::TypeError(const std::string& errorMessage) :
         Error(errorMessage)

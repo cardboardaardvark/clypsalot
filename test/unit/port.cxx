@@ -10,7 +10,10 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <clypsalot/logging.hxx>
+#include <clypsalot/macros.hxx>
 #include <clypsalot/port.hxx>
+#include <clypsalot/util.hxx>
 
 #include "test/lib/test.hxx"
 #include "test/module/object.hxx"
@@ -19,6 +22,72 @@
 using namespace Clypsalot;
 
 TEST_MAIN_FUNCTION
+
+TEST_CASE(PortLink_equality_operators)
+{
+    auto object1 = TestObject::make();
+    auto object2 = TestObject::make();
+    std::unique_lock object1Lock(*object1);
+    std::unique_lock object2Lock(*object2);
+    auto& output = object1->publicAddOutput<MTestOutputPort>("output");
+    auto& input1 = object2->publicAddInput<MTestInputPort>("input 1");
+    auto& input2 = object2->publicAddInput<MTestInputPort>("input 2");
+    auto& type = MTestPortType::singleton;
+
+    auto link1 = type.makeLink(output, input1);
+    auto link2 = type.makeLink(output, input1);
+    auto link3 = type.makeLink(output, input2);
+
+    LOGGER(debug, "link1: ", *link1);
+    LOGGER(debug, "link2: ", *link2);
+    LOGGER(debug, "link3: ", *link3);
+
+    BOOST_CHECK(*link1 == *link1);
+    BOOST_CHECK(*link1 == *link2);
+    BOOST_CHECK(! (*link1 == *link3));
+
+    BOOST_CHECK(! (*link1 != *link1));
+    BOOST_CHECK(! (*link1 != *link2));
+    BOOST_CHECK(*link1 != *link3);
+
+    for (auto link : {link1, link2, link3})
+    {
+        delete link;
+    }
+}
+
+TEST_CASE(Port_hasLink)
+{
+    auto object1 = TestObject::make();
+    auto object2 = TestObject::make();
+    std::unique_lock object1Lock(*object1);
+    std::unique_lock object2Lock(*object2);
+    auto& output = object1->publicAddOutput<MTestOutputPort>("output");
+    auto& input1 = object2->publicAddInput<MTestInputPort>("input 1");
+    auto& input2 = object2->publicAddInput<MTestInputPort>("input 2");
+    auto& type = MTestPortType::singleton;
+
+    for (auto object : {object1, object2})
+    {
+        object->configure();
+    }
+
+    auto link1 = linkPorts(output, input1);
+    auto link2 = type.makeLink(output, input1);
+    auto link3 = type.makeLink(output, input2);
+
+    BOOST_CHECK(output.hasLink(link1));
+    BOOST_CHECK(!output.hasLink(link2));
+    BOOST_CHECK(! output.hasLink(link3));
+    BOOST_CHECK(input1.hasLink(link1));
+    BOOST_CHECK(! input1.hasLink(link2));
+    BOOST_CHECK(! input1.hasLink(link3));
+
+    for(auto link : {link2, link3})
+    {
+        delete link;
+    }
+}
 
 TEST_CASE(linkPorts_function_single)
 {

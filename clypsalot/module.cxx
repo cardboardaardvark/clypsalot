@@ -22,13 +22,13 @@ namespace Clypsalot
     {
         for (const auto& descriptor : module->types)
         {
-            LOGGER(trace, "Found type in module: ", descriptor.name);
+            LOGGER(debug, "Found type in module: ", descriptor.name);
             portTypeCatalog().add(descriptor);
         }
 
         for (const auto& descriptor : module->objects)
         {
-            LOGGER(trace, "Found object in module: ", descriptor.kind);
+            LOGGER(debug, "Found object in module: ", descriptor.kind);
             objectCatalog().add(descriptor);
         }
     }

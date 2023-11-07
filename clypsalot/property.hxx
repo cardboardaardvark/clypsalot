@@ -15,11 +15,9 @@
 #include <any>
 #include <cstdint>
 #include <filesystem>
-#include <initializer_list>
 #include <string>
 
 #include <clypsalot/forward.hxx>
-#include <clypsalot/thread.hxx>
 
 namespace Clypsalot
 {
@@ -42,8 +40,6 @@ namespace Clypsalot
         const bool publicMutable;
         const std::any initial;
     };
-
-    using PropertyList = std::initializer_list<PropertyConfig>;
 
     class Property
     {
@@ -97,6 +93,7 @@ namespace Clypsalot
         ~Property();
         void operator=(const Property&) = delete;
         bool defined() const;
+        std::string asString() const;
         BooleanType booleanValue() const;
         void booleanValue(const BooleanType value);
         FileType fileValue() const;

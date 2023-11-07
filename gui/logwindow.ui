@@ -23,7 +23,7 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>Frame</string>
+   <string>Clypsalot Log Messages</string>
   </property>
   <layout class="QGridLayout" name="gridLayout">
    <item row="0" column="0">
@@ -58,7 +58,7 @@
           <string>Maximum messages</string>
          </property>
          <property name="text">
-          <string>10000</string>
+          <string>1000</string>
          </property>
         </widget>
        </item>

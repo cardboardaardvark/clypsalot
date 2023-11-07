@@ -20,7 +20,7 @@ namespace Clypsalot
 {
     MessageProcessor::~MessageProcessor()
     {
-        LOGGER(debug, "MessageProcessor is being destroyed");
+        LOGGER(trace, "MessageProcessor is being destroyed");
 
         std::unique_lock lock(mutex);
 
@@ -30,7 +30,7 @@ namespace Clypsalot
         {
             if (processing)
             {
-                LOGGER(debug, "Waiting for MessageProcessor to finish executing inside the ThreadQueue");
+                LOGGER(trace, "Waiting for MessageProcessor to finish executing inside the ThreadQueue");
                 return false;
             }
 
@@ -70,7 +70,7 @@ namespace Clypsalot
 
         if (! receiving)
         {
-            LOGGER(debug, "Will not handle message because MessageProcessor is not receiving messages: ", typeName(type));
+            LOGGER(trace, "Will not handle message because MessageProcessor is not receiving messages: ", typeName(type));
             return false;
         }
 

@@ -12,7 +12,7 @@
 
 #pragma once
 
-#include <clypsalot/module.hxx>
+#include <clypsalot/forward.hxx>
 
 namespace Clypsalot
 {

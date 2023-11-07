@@ -8,6 +8,7 @@
 #include <clypsalot/module.hxx>
 #include <clypsalot/object.hxx>
 #include <clypsalot/port.hxx>
+#include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
@@ -24,9 +25,9 @@ namespace Clypsalot
         &typeid(ObjectStoppedEvent),
     };
 
-    [[noreturn]] static void objectStateError(const ObjectState currentState)
+    [[noreturn]] static void objectStateError(const SharedObject& object)
     {
-        throw StateError(makeString("Operation is invalid given current object state: ", currentState));
+        throw ObjectStateError(object, object->state(), "Operation is invalid given current object state");
     }
 
     ObjectEvent::ObjectEvent(const SharedObject& sender) :
@@ -57,7 +58,7 @@ namespace Clypsalot
         id(nextObjectId++),
         kind(kind)
     {
-        OBJECT_LOGGER(debug, "Object is being constructed");
+        OBJECT_LOGGER(debug, "Object is being constructed: ", kind);
 
         std::unique_lock lock(mutex);
 
@@ -115,7 +116,7 @@ namespace Clypsalot
         if (! validateStateChange(oldState, newState))
         {
             OBJECT_LOGGER(error, "requested state change is invalid: ", formatStateChange(oldState, newState));
-            throw StateError(makeString("Object state change is invalid: ", formatStateChange(oldState, newState)));
+            throw ObjectStateChangeError(shared_from_this(), oldState, newState);
         }
 
         currentState = newState;
@@ -281,7 +282,7 @@ namespace Clypsalot
         {
             if (currentState != ObjectState::initializing)
             {
-                objectStateError(currentState);
+                objectStateError(shared_from_this());
             }
 
             handleInit(config);
@@ -319,7 +320,7 @@ namespace Clypsalot
 
             if (currentState != ObjectState::configuring)
             {
-                objectStateError(currentState);
+                objectStateError(shared_from_this());
             }
 
             handleConfigure(config);
@@ -368,7 +369,7 @@ namespace Clypsalot
 
         if (! objectIsPreparing(currentState))
         {
-            objectStateError(currentState);
+            objectStateError(shared_from_this());
         }
 
         const auto& [iterator, result] = objectProperties.try_emplace(
@@ -566,8 +567,8 @@ namespace Clypsalot
 
             if (! objectIsShutdown(currentState))
             {
-                OBJECT_LOGGER(error, "Attempt to shutdown object that was not in shutdown states");
-                objectStateError(currentState);
+                OBJECT_LOGGER(error, "Attempt to shutdown object that was not in a shutdown state: ", *this);
+                objectStateError(shared_from_this());
             }
 
             events->send(ObjectShutdownEvent(shared_from_this()));
@@ -668,7 +669,7 @@ namespace Clypsalot
 
         if (! objectIsPreparing(currentState))
         {
-            objectStateError(currentState);
+            objectStateError(shared_from_this());
         }
 
         if (hasOutput(output->name))
@@ -763,7 +764,7 @@ namespace Clypsalot
 
         if (! objectIsPreparing(currentState))
         {
-            objectStateError(currentState);
+            objectStateError(shared_from_this());
         }
 
         OBJECT_LOGGER(trace, "Adding input: ", input->name, "=", input->type.name);
@@ -838,6 +839,20 @@ namespace Clypsalot
     {
         assert(object->haveLock());
 
+        const auto state = object->state();
+
+        if (state == ObjectState::paused)
+        {
+            LOGGER(debug, "Won't pause object that is already paused: ", *object);
+            return false;
+        }
+
+        if (objectIsPreparing(state))
+        {
+            LOGGER(debug, "Won't pause object that is preparing: ", *object);
+            return false;
+        }
+
         bool doPause = false;
 
         object->wait([&object, &doPause]
@@ -846,35 +861,22 @@ namespace Clypsalot
 
             LOGGER(trace, "Checking if pauseObject() for ", *object, " should stop waiting; state=", objectState);
 
-            if (objectIsPreparing(objectState))
-            {
-                throw StateError(makeString("Can't pause object that is preparing: ", *object));
-            }
-
-            if (objectIsShutdown(objectState))
-            {
-                throw StateError(makeString("Can't pause object that is shutdown: ", *object));
-            }
-
-            if (objectState == ObjectState::paused)
-            {
-                return true;
-            }
-
             if (objectState == ObjectState::waiting)
             {
                 doPause = true;
                 return true;
             }
 
+            if (objectIsShutdown(objectState))
+            {
+                LOGGER(debug, "Won't pause object that is shutdown: ", *object);
+                return true;
+            }
+
             return false;
         });
 
-        if (doPause)
-        {
-            object->pause();
-        }
-
+        if (doPause) object->pause();
         return doPause;
     }
 
@@ -883,16 +885,33 @@ namespace Clypsalot
      * @param object The object to start.
      * @throws StateError if the object is not in a state where it can be started.
      */
-    void startObject(const SharedObject& object)
+    bool startObject(const SharedObject& object)
     {
         assert(object->haveLock());
 
-        object->start();
+        const auto state = object->state();
 
-        if (object->ready())
+        if (objectIsShutdown(state))
         {
-            scheduleObject(object);
+            LOGGER(debug, "Won't start object that is shutdown: ", *object);
+            return false;
         }
+
+        if (objectIsPreparing(state))
+        {
+            LOGGER(debug, "Won't start object that is preparing: ", *object);
+            return false;
+        }
+
+        if (state != ObjectState::paused)
+        {
+            LOGGER(debug, "Won't start object that is not paused: ", *object);
+            return false;
+        }
+
+        object->start();
+        if (object->ready()) scheduleObject(object);
+        return true;
     }
 
     /**
@@ -912,7 +931,7 @@ namespace Clypsalot
 
         threadQueuePost([object]
         {
-            LOGGER(debug, "Executing ", *object, " from inside the thread queue.");
+            LOGGER(trace, "Executing ", *object, " from inside the thread queue.");
 
             std::unique_lock lock(*object);
             const auto result = object->execute();
@@ -937,7 +956,7 @@ namespace Clypsalot
         });
     }
 
-    void stopObject(const SharedObject& object)
+    bool stopObject(const SharedObject& object)
     {
         assert(object->haveLock());
 
@@ -945,7 +964,8 @@ namespace Clypsalot
 
         if (objectIsShutdown(state))
         {
-            return;
+            LOGGER(debug, "Won't stop object that is already stopped: ", *object);
+            return false;
         }
 
         if (! objectIsPreparing(state))
@@ -954,6 +974,7 @@ namespace Clypsalot
         }
 
         object->stop();
+        return true;
     }
 
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept

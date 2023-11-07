@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <list>
+
 #include <QFrame>
 
 #include <clypsalot/logging.hxx>
@@ -25,13 +27,18 @@ class LogWindowDestination : public QObject, public Clypsalot::LogDestination
     Q_OBJECT
 
     protected:
-    virtual void handleLogEvent(const Clypsalot::LogEvent& event) noexcept;
+    bool needToSignal = true;
+    Clypsalot::Mutex queueMutex;
+    std::list<Clypsalot::LogEvent> eventQueue;
+
+    void handleLogEvent(const Clypsalot::LogEvent& event) noexcept override;
 
     Q_SIGNALS:
-    void newMessage(const QString& message);
+    void checkMessages();
 
     public:
     LogWindowDestination(const Clypsalot::LogSeverity severity);
+    void getEvents(std::list<Clypsalot::LogEvent>& destination);
 };
 
 class LogWindow : public QFrame
@@ -44,6 +51,7 @@ class LogWindow : public QFrame
     void initLogSeverities();
 
     protected Q_SLOTS:
+    void updateMessages();
     void updateMaxMessages();
 
     public:

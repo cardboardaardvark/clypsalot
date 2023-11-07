@@ -15,7 +15,7 @@
 #include <QFormLayout>
 #include <QWidget>
 
-#include <clypsalot/object.hxx>
+#include <clypsalot/forward.hxx>
 
 #include "data.hxx"
 

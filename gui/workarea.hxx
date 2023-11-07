@@ -1,125 +1,106 @@
+/* Copyright 2023 Tyler Riddle
+ *
+ * This file is part of Clypsalot. Clypsalot is free software: you can redistribute it and/or modify it under the terms
+ * of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version. Clypsalot is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Clypsalot. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
 #pragma once
 
-#include <QUndoStack>
-#include <QWidget>
+#include <QGraphicsScene>
+#include <QGraphicsView>
+#include <QGraphicsWidget>
+#include <QLineF>
 
-#include <clypsalot/module.hxx>
+#include <clypsalot/forward.hxx>
 
-#include "createobjectdialog.hxx"
-#include "object.hxx"
+#include "catalog.hxx"
+#include "forward.hxx"
 
-struct PortConnection
+enum class WorkAreaItemType : int
 {
-    OutputPort* output;
-    InputPort* input;
+    inputPort = QGraphicsItem::UserType,
 };
 
-struct TempConnectionLine
-{
-    const QPoint start;
-    const QPoint end;
-};
-
-class WorkArea : public QWidget
+class WorkAreaWidget : public QGraphicsWidget
 {
     Q_OBJECT
 
-    CreateObjectDialog* createObjectDialog = nullptr;
-    QUndoStack undoStack;
-    std::map<ObjectId, Object*> objects;
-    std::vector<PortConnection> connections;
-    struct TempConnectionLine* tempConnectionLine = nullptr;
+    qreal m_borderWidth = 0;
 
     protected:
-    virtual void paintEvent(QPaintEvent* event) override;
-    virtual void dragEnterEvent(QDragEnterEvent *event) override;
-    void catalogDragEnter(QDragEnterEvent* event);
-    void objectDragEnter(QDragEnterEvent* event);
-    virtual void dragMoveEvent(QDragMoveEvent* event) override;
-    void objectDragMove(QDragMoveEvent* event);
-    virtual void dropEvent(QDropEvent* event) override;
-    void catalogDrop(QDropEvent* event);
-    void objectDrop(QDropEvent* event);
-    void createObjectStart(const Clypsalot::ObjectDescriptor& descriptor, const QPoint& position);
-    void outputPortDragEnter(QDragEnterEvent* event);
-    void outputPortDragMove(QDragMoveEvent* event);
+    void paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *) override;
+    void paintBorder(QPainter* painter);
+    QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
 
     protected Q_SLOTS:
-    void createObjectFinished(const int shouldAdd);
+    void updateSelected(const bool selected);
+
+    Q_SIGNALS:
+    void selectedChanged(bool);
 
     public:
-    explicit WorkArea(QWidget *parent = nullptr);
-    void sizeToContents();
-    QUndoStack& undoHistory();
-    Object* object(const ObjectId id);
-    void addObject(Object* const object);
-    void removeObject(const size_t id);
-    bool hasConnection(OutputPort* from, InputPort* to);
-    void connectPortsCommand(OutputPort* from, InputPort* to);
-    void addConnection(OutputPort* from, InputPort* to);
-    void removeConnection(OutputPort* from, InputPort* to);
-    void startObjects();
+    explicit WorkAreaWidget(QGraphicsItem* parent = nullptr);
+    qreal borderWidth();
+    void setBorderWidth(const qreal borderWidth);
+};
+
+class WorkAreaLabelWidget : public WorkAreaWidget
+{
+    Q_OBJECT
+
+    QGraphicsSimpleTextItem textItem;
+
+    public:
+    WorkAreaLabelWidget(const QString& text = "", QGraphicsItem* parent = nullptr);
+    QString text();
+    void setText(const QString& text);
+};
+
+class WorkAreaScene : public QGraphicsScene
+{
+    Q_OBJECT
+
+    protected:
+    void dragEnterEvent(QGraphicsSceneDragDropEvent* event) override;
+    void dragMoveEvent(QGraphicsSceneDragDropEvent* event) override;
+    void dropEvent(QGraphicsSceneDragDropEvent* event) override;
+    void catalogDropEvent(QGraphicsSceneDragDropEvent* event);
+    void catalogObjectDrop(const CatalogObjectItem* const item, const QPointF& position);
+
+    public:
+    WorkAreaScene(QObject* parent);
+};
+
+class WorkAreaConnectionLine : public QGraphicsLineItem
+{
+    public:
+    WorkAreaConnectionLine(const QLineF& line = QLineF(), QGraphicsItem* parent = nullptr);
+    void setInvalid(const bool invalid);
+};
+
+class WorkArea : public QGraphicsView
+{
+    Q_OBJECT
+
+    WorkAreaConnectionLine* connectionDragLine = nullptr;
+
+    public:
+    WorkAreaScene* const scene;
+
+    explicit WorkArea(QWidget* parent = nullptr);
+    QList<Object*> objects();
+    void startConnectionDrag();
+    void updateConnectionDrag(const QPointF& start, const QPointF& end, const bool invalid);
+    void resetConnectionDrag();
 
     public Q_SLOTS:
-    void clearTempConnectionLine();
+    void startObjects();
+    void pauseObjects();
+    void stopObjects();
 };
-
-class AddObjectCommand : public QUndoCommand
-{
-    static ObjectId nextObjectId;
-    WorkArea* const workArea;
-    ObjectId objectId = 0;
-    const Clypsalot::ObjectDescriptor& descriptor;
-    const Clypsalot::ObjectConfig config;
-    const std::vector<std::pair<QString, QString>> addOutputs;
-    const std::vector<std::pair<QString, QString>> addInputs;
-    const QPoint position;
-
-    public:
-    AddObjectCommand(
-            WorkArea* const workArea,
-            const Clypsalot::ObjectDescriptor& descriptor,
-            const Clypsalot::ObjectConfig& config,
-            const std::vector<std::pair<QString, QString>> addOutputs,
-            const std::vector<std::pair<QString, QString>> addInputs,
-            const QPoint& position
-    );
-    virtual void redo() override;
-    virtual void undo() override;
-};
-
-class MoveObjectCommand : public QUndoCommand
-{
-    const ObjectId id;
-    const QPoint newPosition;
-    const QPoint oldPosition;
-
-    public:
-    MoveObjectCommand(const ObjectId id, const QPoint& newPosition, const QPoint& oldPosition);
-    virtual void redo() override;
-    virtual void undo() override;
-};
-
-class ResizeWorkAreaCommand : public QUndoCommand
-{
-    const QSize newSize;
-    const QSize oldSize;
-
-    public:
-    ResizeWorkAreaCommand(const QSize& newSize, const QSize& oldSize);
-    virtual void redo();
-    virtual void undo();
-};
-
-class ConnectPortsCommand : public QUndoCommand
-{
-    OutputPort* const output;
-    InputPort* const input;
-
-    public:
-    ConnectPortsCommand(OutputPort* output, InputPort* input);
-    virtual void redo() override;
-    virtual void undo() override;
-};
-
-void drawPortConnection(QPainter& painter, const QPoint& start, const QPoint& end);

@@ -35,6 +35,11 @@ namespace Clypsalot
         finally();
     }
 
+    std::string version() noexcept
+    {
+        return CLYPSALOT_VERSION;
+    }
+
     /// @brief Return a demangled name of a type.
     std::string typeName(const std::type_info& type)
     {

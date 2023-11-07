@@ -39,6 +39,7 @@ namespace Clypsalot
         ~Finally();
     };
 
+    std::string version() noexcept;
     std::string typeName(const std::type_info& type);
     bool anyIsStringType(const std::any& value);
     bool anyToBool(const std::any& value);

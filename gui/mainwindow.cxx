@@ -13,6 +13,8 @@
 #include <QCloseEvent>
 #include <QString>
 
+#include <clypsalot/module.hxx>
+
 #include "test/module/module.hxx"
 
 #include "logging.hxx"
@@ -27,46 +29,13 @@ MainWindow::MainWindow(QWidget *parent) :
     ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
-    undoHistoryWindow = new QUndoView(&ui->workArea->undoHistory());
-
-    initEditMenu();
 
     connect(this, SIGNAL(statusUpdate(const QString&)), ui->statusBar, SLOT(showMessage(const QString&)));
 }
 
 MainWindow::~MainWindow()
 {
-    delete undoHistoryWindow;
     delete ui;
-}
-
-void MainWindow::initEditMenu()
-{
-    QMenu* editMenu = nullptr;
-
-    for (auto menu : menuBar()->findChildren<QMenu*>())
-    {
-        if (menu->title() == "Edit")
-        {
-            editMenu = menu;
-            break;
-        }
-    }
-
-    if (editMenu == nullptr)
-    {
-        LOGGER(error, "Could not find Edit menu");
-        return;
-    }
-
-    const auto& undoHistory = ui->workArea->undoHistory();
-    auto undoAction = undoHistory.createUndoAction(editMenu);
-    undoAction->setShortcut(QKeySequence("Ctrl+Z"));
-    editMenu->addAction(undoAction);
-
-    auto redoAction = undoHistory.createRedoAction(editMenu);
-    redoAction->setShortcut(QKeySequence("Ctrl+Y"));
-    editMenu->addAction(redoAction);
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
@@ -86,11 +55,6 @@ bool MainWindow::shouldQuit()
     return true;
 }
 
-void MainWindow::sizeWorkAreaToContents()
-{
-    ui->workArea->sizeToContents();
-}
-
 void MainWindow::loadModules()
 {
     Clypsalot::threadQueuePost([this]
@@ -106,27 +70,12 @@ void MainWindow::showLogWindow()
     openWindow(logWindow());
 }
 
-void MainWindow::showUndoHistoryWindow()
-{
-    openWindow(undoHistoryWindow);
-}
-
-void MainWindow::redrawWorkArea()
-{
-    ui->workArea->update();
-}
-
 WorkArea* MainWindow::workArea()
 {
     return ui->workArea;
 }
 
-QScrollArea* MainWindow::workAreaScrollArea()
+void MainWindow::showError(const QString& message)
 {
-    return ui->workAreaScrollArea;
-}
-
-void MainWindow::startObjects()
-{
-    ui->workArea->startObjects();
+    Q_EMIT statusUpdate(makeQString("ERROR: ", message));
 }

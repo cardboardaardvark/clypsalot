@@ -15,8 +15,7 @@
 #include <initializer_list>
 #include <string>
 
-#include <clypsalot/object.hxx>
-#include <clypsalot/port.hxx>
+#include <clypsalot/forward.hxx>
 
 namespace Clypsalot
 {

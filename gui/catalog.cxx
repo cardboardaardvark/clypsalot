@@ -12,6 +12,7 @@
 
 #include <QDrag>
 
+#include <clypsalot/catalog.hxx>
 #include <clypsalot/module.hxx>
 
 #include "catalog.hxx"
@@ -31,7 +32,7 @@ CatalogObjectItem::CatalogObjectItem(QTreeWidgetItem* parent, const Clypsalot::O
     descriptor(descriptor)
 { }
 
-CatalogMimeData::CatalogMimeData(const CatalogEntryItem& entry, const QString& title) :
+CatalogMimeData::CatalogMimeData(const CatalogEntryItem* const entry, const QString& title) :
     entry(entry)
 {
     setText(title);
@@ -59,7 +60,7 @@ void Catalog::startDrag(Qt::DropActions)
 
     if (item->type() == catalogTopLevelItemType) return;
 
-    auto mime = new CatalogMimeData(*dynamic_cast<CatalogEntryItem*>(item), item->text(0));
+    auto mime = new CatalogMimeData(dynamic_cast<const CatalogEntryItem*>(item), item->text(0));
     auto drag = new QDrag(this);
     drag->setMimeData(mime);
     drag->exec(Qt::CopyAction);

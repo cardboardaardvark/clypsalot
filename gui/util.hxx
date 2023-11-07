@@ -12,17 +12,28 @@
 
 #pragma once
 
+#include <QGraphicsLayout>
+#include <QGraphicsProxyWidget>
 #include <QSpacerItem>
 #include <QString>
 #include <QWidget>
 
+#include <clypsalot/forward.hxx>
 #include <clypsalot/util.hxx>
 
 QSpacerItem* makeSpacer();
 void openWindow(QWidget* window);
+Clypsalot::SharedObject makeObject(
+    const Clypsalot::ObjectDescriptor& descriptor,
+    const std::vector<std::pair<QString, QString>>& outputs,
+    const std::vector<std::pair<QString, QString>>& inputs,
+    const Clypsalot::ObjectConfig& config
+);
 
 std::ostream& operator<<(std::ostream& os, const QPoint& point) noexcept;
+std::ostream& operator<<(std::ostream& os, const QPointF& point) noexcept;
 std::ostream& operator<<(std::ostream& os, const QSize& size) noexcept;
+std::ostream& operator<<(std::ostream& os, const QSizeF& size) noexcept;
 std::ostream& operator<<(std::ostream& os, const QString& string) noexcept;
 
 template <typename... Args>

@@ -1,6 +1,20 @@
-#include <QApplication>
-#include <QDrag>
-#include <QMouseEvent>
+/* Copyright 2023 Tyler Riddle
+ *
+ * This file is part of Clypsalot. Clypsalot is free software: you can redistribute it and/or modify it under the terms
+ * of the GNU General Public License as published by the Free Software Foundation, either version 3 of the License,
+ * or (at your option) any later version. Clypsalot is distributed in the hope that it will be useful, but WITHOUT ANY
+ * WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+ * General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with Clypsalot. If not, see
+ * <https://www.gnu.org/licenses/>.
+ */
+
+#include <QGraphicsSceneMouseEvent>
+
+#include <clypsalot/object.hxx>
+#include <clypsalot/port.hxx>
+#include <clypsalot/property.hxx>
 
 #include "logging.hxx"
 #include "main.hxx"
@@ -8,271 +22,318 @@
 
 using namespace std::placeholders;
 
-PortConnectionPoint::PortConnectionPoint(QWidget* parent) :
-    QWidget(parent)
+static const qreal infoBorderWidth = 2;
+static const qreal portBorderWidth = 1;
+
+ObjectPort::ObjectPort(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
+    WorkAreaWidget(parent),
+    parentObject(parentObject)
 {
-    setMinimumSize(12, 12);
+    setFlag(ItemSendsGeometryChanges);
+
+    auto layout = new QGraphicsLinearLayout(Qt::Horizontal);
+    setLayout(layout);
+
+    nameLabel = new WorkAreaLabelWidget(name);
+    nameLabel->setFlag(ItemStacksBehindParent);
+    layout->addItem(nameLabel);
 }
 
-void PortConnectionPoint::paintEvent(QPaintEvent*)
-{
-    QPainter painter(this);
-
-    painter.setBrush(Qt::SolidPattern);
-    painter.drawEllipse(1, 1, 10, 10);
-}
-
-Port::Port(const QString& name, QWidget* parent) :
-    QFrame(parent)
-{
-    mainLayout = new QHBoxLayout();
-    setLayout(mainLayout);
-
-    nameLabel = new QLabel(name);
-
-    connectPoint = new PortConnectionPoint(this);
-    connectPoint->show();
-
-    connectPointLayout = new QVBoxLayout();
-    connectPointLayout->addItem(makeSpacer());
-    connectPointLayout->addWidget(connectPoint);
-    connectPointLayout->addItem(makeSpacer());
-}
-
-QPoint Port::globalConnectPointPosition()
-{
-    auto position = connectPoint->pos();
-    auto size = connectPoint->size();
-
-    position.setX(position.x() + size.width() / 2);
-    position.setY(position.y() + size.height() / 2);
-    return mapToGlobal(position);
-}
-
-Object* Port::parentObject()
-{
-    return qobject_cast<Object *>(parent());
-}
-
-QString Port::name()
+const QString ObjectPort::name()
 {
     return nameLabel->text();
 }
 
-InputPort::InputPort(const QString& name, QWidget* parent) :
-    Port(name, parent)
+void ObjectPort::addConnection(PortConnection* connection)
+{
+    connections.append(connection);
+}
+
+void ObjectPort::updateConnectionPositions()
+{
+    for (auto connection : connections) connection->updatePosition();
+}
+
+ObjectInput::ObjectInput(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
+    ObjectPort(parentObject, name, parent)
 {
     setAcceptDrops(true);
-
-    mainLayout->addLayout(connectPointLayout);
-    mainLayout->addWidget(nameLabel);
 }
 
-void InputPort::dragEnterEvent(QDragEnterEvent* event)
+int ObjectInput::type() const
 {
-    auto mime = event->mimeData();
+    return static_cast<int>(WorkAreaItemType::inputPort);
+}
 
-    if (mime->hasFormat(outputPortMimeFormat))
+QPointF ObjectInput::connectPos()
+{
+    auto mySize = size();
+    return {0, mySize.height() / 2};
+}
+
+ObjectOutput::ObjectOutput(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
+    ObjectPort(parentObject, name, parent)
+{ }
+
+void ObjectOutput::mousePressEvent(QGraphicsSceneMouseEvent *)
+{
+    mainWindow()->workArea()->startConnectionDrag();
+}
+
+void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
+{
+    auto workArea = mainWindow()->workArea();
+
+    auto lineStart = mapToScene(connectPos());
+    auto cursorPos = mapToScene(event->pos());
+    auto item = workArea->scene->itemAt(cursorPos, QTransform());
+
+    if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
     {
-        event->acceptProposedAction();
+        auto input = dynamic_cast<ObjectInput*>(item);
+        assert(input != nullptr);
+        workArea->updateConnectionDrag(lineStart, input->mapToScene(input->connectPos()), false);
+    }
+    else workArea->updateConnectionDrag(lineStart, cursorPos, true);
+}
+
+void ObjectOutput::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
+{
+    mainWindow()->workArea()->resetConnectionDrag();
+
+    auto lastPos = event->lastPos();
+    auto item = mainWindow()->workArea()->scene->itemAt(mapToScene(lastPos), QTransform());
+
+    if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
+    {
+        auto input = dynamic_cast<ObjectInput*>(item);
+        assert(input != nullptr);
+        createConnection(input);
     }
 }
 
-void InputPort::dropEvent(QDropEvent* event)
+QPointF ObjectOutput::connectPos()
 {
-    if (! event->mimeData()->hasFormat(outputPortMimeFormat)) return;
-
-    auto mime = qobject_cast<const OutputPortMimeData*>(event->mimeData());
-
-    mainWindow()->workArea()->connectPortsCommand(mime->port, this);
+    auto mySize = size();
+    return {mySize.width(), mySize.height() / 2};
 }
 
-OutputPort::OutputPort(const QString& name, QWidget* parent) :
-    Port(name, parent)
+void ObjectOutput::createConnection(ObjectInput* to)
 {
-    mainLayout->addWidget(nameLabel);
-    mainLayout->addLayout(connectPointLayout);
-}
+    try {
+        auto fromObject = parentObject->object;
+        auto toObject = to->parentObject->object;
+        std::scoped_lock fromLock(*fromObject);
+        std::scoped_lock toLock(*toObject);
+        auto& fromPort = fromObject->output(name().toStdString());
+        auto& toPort = toObject->input(to->name().toStdString());
 
-void OutputPort::mousePressEvent(QMouseEvent* event)
-{
-    if (event->button() == Qt::LeftButton)
-    {
-        dragStart = event->pos();
+        Clypsalot::linkPorts(fromPort, toPort);
     }
+    catch (const Clypsalot::Error& e)
+    {
+        LOGGER(error, "Could not create a connection: ", e.what());
+        mainWindow()->showError(QString::fromStdString(e.what()));
+        return;
+    }
+
+    auto connection = new PortConnection(this, to);
+    addConnection(connection);
+    to->addConnection(connection);
 }
 
-void OutputPort::mouseMoveEvent(QMouseEvent* event)
+PortConnection::PortConnection(ObjectOutput* const from, ObjectInput* const to, QGraphicsObject* parent) :
+    QGraphicsWidget(parent),
+    from(from),
+    to(to),
+    line(QLineF(), this)
 {
-    if (! event->buttons() & Qt::LeftButton) return;
-    if ((event->pos() - dragStart).manhattanLength() < QApplication::startDragDistance()) return;
-
-    auto drag = new QDrag(this);
-    auto mime = new OutputPortMimeData(this);
-
-    connect(drag, SIGNAL(destroyed()), mainWindow()->workArea(), SLOT(clearTempConnectionLine()));
-
-    drag->setMimeData(mime);
-    drag->exec();
+    updatePosition(),
+    mainWindow()->workArea()->scene->addItem(this);
 }
 
-Object::Object(const ObjectId id, const Clypsalot::SharedObject& object, QWidget* parent) :
-    QWidget(parent),
-    id(id),
+void PortConnection::updatePosition()
+{
+    line.setLine
+    ({
+        mapFromItem(from, from->connectPos()),
+        mapFromItem(to, to->connectPos()),
+    });
+}
+
+ObjectInfo::ObjectInfo(QGraphicsItem* parent) :
+    WorkAreaWidget(parent),
+    kind(new WorkAreaLabelWidget()),
+    state(new WorkAreaLabelWidget())
+{
+    setBorderWidth(infoBorderWidth);
+
+    auto layout = new QGraphicsLinearLayout(Qt::Vertical);
+
+    setLayout(layout);
+
+    layout->addItem(kind);
+    layout->setAlignment(kind, Qt::AlignHCenter);
+
+    layout->addItem(state);
+    layout->setAlignment(state, Qt::AlignHCenter);
+}
+
+Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
+    WorkAreaWidget(parent),
     object(object)
 {
-    std::unique_lock lock(*object);
+    setFlag(ItemIsMovable);
+    setAutoFillBackground(true);
 
-    setStyleSheet("background-color: white;");
+    auto mainLayout = new QGraphicsLinearLayout(Qt::Horizontal);
+    auto inputsLayout = new QGraphicsLinearLayout(Qt::Vertical);
+    auto infoLayout = new QGraphicsLinearLayout(Qt::Vertical);
+    auto outputsLayout = new QGraphicsLinearLayout(Qt::Vertical);
+    auto propertiesLayout = new QGraphicsGridLayout();
 
-    mainLayout = new QHBoxLayout(this);
-    mainLayout->setSizeConstraint(QLayout::SetFixedSize);
+    setLayout(mainLayout);
 
-    inputLayout = new QVBoxLayout();
-    inputLayout->addItem(makeSpacer());
-    mainLayout->addLayout(inputLayout);
+    mainLayout->addItem(inputsLayout);
 
-    infoFrame = new QFrame();
-    infoFrame->setFrameStyle(QFrame::Box);
-    infoFrame->setLineWidth(2);
-    mainLayout->addWidget(infoFrame);
+    info = new ObjectInfo();
+    infoLayout->addItem(info);
+    infoLayout->addItem(propertiesLayout);
+    mainLayout->addItem(infoLayout);
 
-    infoLayout = new QVBoxLayout();
-    infoLayout->setSizeConstraint(QLayout::SetFixedSize);
-    infoFrame->setLayout(infoLayout);
+    mainLayout->addItem(outputsLayout);
 
-    kindLabel = new QLabel(QString::fromStdString(object->kind));
-    infoLayout->addWidget(kindLabel);
+    connect(this, SIGNAL(stateChanged(Clypsalot::ObjectState)), this, SLOT(updateState(const Clypsalot::ObjectState)));
+    connect(this, SIGNAL(propertyValues(const QList<std::pair<QString, QString>>&)), this, SLOT(updateProperties(const QList<std::pair<QString, QString>>&)));
+    connect(this, SIGNAL(selectedChanged(bool)), this, SLOT(updateSelected(bool)));
 
-    auto stateLayout = new QHBoxLayout();
-    stateLabel = new QLabel();
-    stateLayout->addItem(makeSpacer());
-    stateLayout->addWidget(stateLabel);
-    stateLayout->addItem(makeSpacer());
-    infoLayout->addLayout(stateLayout);
+    initObject(inputsLayout, outputsLayout, propertiesLayout);
+}
 
-    infoLayout->addSpacerItem(makeSpacer());
+void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayout* outputsLayout, QGraphicsGridLayout* propertiesLayout)
+{
+    std::scoped_lock lock(*object);
 
-    outputLayout = new QVBoxLayout();
-    outputLayout->addItem(makeSpacer());
-    mainLayout->addLayout(outputLayout);
-
-    addPorts();
+    info->kind->setText(QString::fromStdString(object->kind));
 
     subscriptions.push_back(object->subscribe<Clypsalot::ObjectStateChangedEvent>(std::bind(&Object::handleEvent, this, _1)));
-    connect(this, SIGNAL(stateChanged(Clypsalot::ObjectState)), this, SLOT(updateState(Clypsalot::ObjectState)));
     updateState(object->state());
-}
 
-void Object::addPorts()
-{
-    assert(object->haveLock());
-
-    for (const auto output : object->outputs())
+    for (auto port : object->inputs())
     {
-        addOutput(QString::fromStdString(output->name));
+        auto inputName = QString::fromStdString(port->name);
+        auto input = new ObjectInput(this, inputName);
+        input->setBorderWidth(portBorderWidth);
+        inputsLayout->addItem(input);
     }
 
-    for (const auto input : object->inputs())
+    for (auto port : object->outputs())
     {
-        addInput(QString::fromStdString(input->name));
-    }
-}
-
-void Object::addOutput(const QString& name)
-{
-    auto port = new OutputPort(name);
-
-    outputLayout->addWidget(port);
-    outputLayout->addItem(makeSpacer());
-}
-
-void Object::addInput(const QString& name)
-{
-    auto port = new InputPort(name);
-
-    inputLayout->addWidget(port);
-    inputLayout->addItem(makeSpacer());
-}
-
-void Object::mousePressEvent(QMouseEvent *event)
-{
-    if (event->button() == Qt::LeftButton)
-    {
-        dragStartPoint = event->position().toPoint();
-        return;
+        auto outputName = QString::fromStdString(port->name);
+        auto output = new ObjectOutput(this, outputName);
+        output->setBorderWidth(portBorderWidth);
+        outputsLayout->addItem(output);
     }
 
-    QWidget::mousePressEvent(event);
-}
+    uint rowNum = 0;
 
-void Object::mouseMoveEvent(QMouseEvent *event)
-{
-    if (event->buttons() & Qt::LeftButton && (event->position().toPoint() - dragStartPoint).manhattanLength() < QApplication::startDragDistance())
+    for (const auto& [name, property] : object->properties())
     {
-        dragStart();
-        return;
-    }
+        QString value;
 
-    QWidget::mouseMoveEvent(event);
-}
+        if (property.defined()) value = QString::fromStdString(property.asString());
 
-void Object::dragStart()
-{
-    assert(! dragInProgress);
-
-    dragInProgress = true;
-
-    auto drag = new QDrag(this);
-    auto mime = new ObjectMimeData(this);
-
-    connect(drag, SIGNAL(destroyed()), this, SLOT(dragDestroyed()));
-
-    drag->setMimeData(mime);
-    drag->exec();
-}
-
-void Object::dragDestroyed()
-{
-    if (dragInProgress)
-    {
-        // Put the object back if the drag was cancelled
-        move(dragStartPoint);
-        dragEnd();
+        auto qName = QString::fromStdString(name);
+        auto nameLabel = new WorkAreaLabelWidget(qName);
+        auto valueLabel = new WorkAreaLabelWidget(value);
+        propertiesLayout->addItem(nameLabel, rowNum, 0);
+        propertiesLayout->addItem(valueLabel, rowNum, 1);
+        m_propertyValues[qName] = valueLabel;
+        rowNum++;
     }
 }
 
-void Object::dragEnd()
-{
-    assert(dragInProgress);
-    dragInProgress = false;
-}
-
-QPoint& Object::dragStartPosition()
-{
-    return dragStartPoint;
-}
-
+// This is called from inside the Clypsalot thread queue not the UI thread.
 void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent& event)
 {
     Q_EMIT stateChanged(event.newState);
+
+    QList<std::pair<QString, QString>> values;
+    const auto& properties = object->properties();
+
+    values.reserve(properties.size());
+
+    for (const auto& [name, property] : properties)
+    {
+        QString value;
+
+        if (property.defined()) value = QString::fromStdString(property.asString());
+        values.append({QString::fromStdString(name), value});
+    }
+
+    Q_EMIT propertyValues(values);
 }
 
-void Object::updateState(const Clypsalot::ObjectState newState)
+QVariant Object::itemChange(const GraphicsItemChange change, const QVariant& value)
 {
-    stateLabel->setText(QString::fromStdString(Clypsalot::asString(newState)));
+    if (change == ItemPositionChange && scene())
+    {
+        auto position = value.toPointF();
+        auto rectangle = scene()->sceneRect();
+
+        if (! rectangle.contains(position))
+        {
+            position.setX(qMin(rectangle.right(), qMax(position.x(), rectangle.left())));
+            position.setY(qMin(rectangle.bottom(), qMax(position.y(), rectangle.top())));
+            return position;
+        }
+    }
+    else if (change == ItemPositionHasChanged && scene())
+    {
+        updatePortConnectionPositions();
+    }
+
+    return WorkAreaWidget::itemChange(change, value);
 }
 
-ObjectMimeData::ObjectMimeData(Object* const object) :
-    QMimeData(),
-    object(object)
+void Object::updateState(const Clypsalot::ObjectState state)
 {
-    setData(objectMimeFormat, "");
+    info->state->setText(QString::fromStdString(Clypsalot::asString(state)));
 }
 
-OutputPortMimeData::OutputPortMimeData(OutputPort* const port) :
-    QMimeData(),
-    port(port)
+void Object::updateProperties(const QList<std::pair<QString, QString>>& values)
 {
-    setData(outputPortMimeFormat, "");
+    for (const auto& [name, value] : values)
+    {
+        if (! m_propertyValues.contains(name)) continue;
+        m_propertyValues[name]->setText(value);
+    }
+}
+
+void Object::updatePortConnectionPositions()
+{
+    for (auto item : childItems())
+    {
+        auto port = dynamic_cast<ObjectPort*>(item);
+        if (port == nullptr) continue;
+        port->updateConnectionPositions();
+    }
+}
+
+void Object::start()
+{
+    std::scoped_lock lock(*object);
+    Clypsalot::startObject(object);
+}
+
+void Object::pause()
+{
+    std::scoped_lock lock(*object);
+    Clypsalot::pauseObject(object);
+}
+
+void Object::stop()
+{
+    std::scoped_lock lock(*object);
+    Clypsalot::stopObject(object);
 }

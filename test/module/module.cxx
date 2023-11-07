@@ -12,6 +12,7 @@
 
 #include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
+#include <clypsalot/module.hxx>
 #include <clypsalot/util.hxx>
 
 #include "test/module/module.hxx"

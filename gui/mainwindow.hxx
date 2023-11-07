@@ -27,9 +27,7 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
     Ui::MainWindow* ui = nullptr;
-    QUndoView* undoHistoryWindow;
 
-    void initEditMenu();
     bool shouldQuit();
 
     protected:
@@ -42,13 +40,9 @@ class MainWindow : public QMainWindow
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     WorkArea* workArea();
-    QScrollArea* workAreaScrollArea();
+    void showError(const QString& message);
 
     public Q_SLOTS:
-    void sizeWorkAreaToContents();
     void loadModules();
     void showLogWindow();
-    void showUndoHistoryWindow();
-    void redrawWorkArea();
-    void startObjects();
 };
