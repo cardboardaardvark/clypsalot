@@ -224,7 +224,10 @@ namespace Clypsalot
             unlinkPorts(ports);
         }
 
-        // Have to let the newly created shared_ptr delete the object
+        lock.unlock();
+
+        // Only delete the Object if it was not ressurected because the new shared_ptr
+        // manages it if so.
         if (! resurrectedObject)
         {
             delete object;
