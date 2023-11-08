@@ -145,7 +145,7 @@ namespace Clypsalot
         template <std::derived_from<Event> T>
         void add()
         {
-            std::unique_lock lock(mutex);
+            std::scoped_lock lock(mutex);
             const auto& type = typeid(T);
             _add(type);
         }

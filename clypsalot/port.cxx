@@ -30,6 +30,17 @@ namespace Clypsalot
         name(name)
     { }
 
+    std::string PortLink::toString(const PortLink& link) noexcept
+    {
+        std::string retval;
+
+        retval += Clypsalot::toString(link.from);
+        retval += " -> ";
+        retval += Clypsalot::toString(link.to);
+
+        return retval;
+    }
+
     PortLink::PortLink(OutputPort& from, InputPort& to) :
         from(from),
         to(to)
@@ -48,13 +59,13 @@ namespace Clypsalot
 
     void PortLink::setEndOfData() noexcept
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         endOfDataFlag = true;
     }
 
     bool PortLink::endOfData() const noexcept
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         return endOfDataFlag;
     }
 
@@ -154,6 +165,17 @@ namespace Clypsalot
         return nullptr;
     }
 
+    std::string OutputPort::toString(const OutputPort& port) noexcept
+    {
+        std::string retval;
+
+        retval += Clypsalot::toString(port.parent);
+        retval += "(output=" + port.type.name + ":";
+        retval += port.name + ")";
+
+        return retval;
+    }
+
     OutputPort::OutputPort(const std::string& name, const PortType& type, Object& parent) :
         Port(name, type, parent)
     { }
@@ -173,6 +195,17 @@ namespace Clypsalot
         assert(parent.haveLock());
 
         return Port::findLink(*this, to);
+    }
+
+    std::string InputPort::toString(const InputPort& port) noexcept
+    {
+        std::string retval;
+
+        retval += Clypsalot::toString(port.parent);
+        retval += "(input=" + port.type.name + ":";
+        retval += port.name + ")";
+
+        return retval;
     }
 
     InputPort::InputPort(const std::string& name, const PortType& type, Object& parent) :
@@ -410,45 +443,21 @@ namespace Clypsalot
         needRelink = false;
     }
 
-    std::string asString(const OutputPort& port) noexcept
-    {
-        std::string retval(asString(port.parent));
-        retval += "(output=" + port.type.name + ":";
-        retval += port.name + ")";
-        return retval;
-    }
-
-    std::string asString(const InputPort& port) noexcept
-    {
-        std::string retval(asString(port.parent));
-        retval += "(input=" + port.type.name + ":";
-        retval += port.name + ")";
-        return retval;
-    }
-
-    std::string asString(const PortLink& link) noexcept
-    {
-        std::string retval(asString(link.from));
-        retval += " -> ";
-        retval += asString(link.to);
-        return retval;
-    }
-
     std::ostream& operator<<(std::ostream& os, const InputPort& port) noexcept
     {
-        os << asString(port);
+        os << toString(port);
         return os;
     }
 
     std::ostream& operator<<(std::ostream& os, const OutputPort& port) noexcept
     {
-        os << asString(port);
+        os << toString(port);
         return os;
     }
 
     std::ostream& operator<<(std::ostream& os, const PortLink& link) noexcept
     {
-        os << asString(link);
+        os << toString(link);
         return os;
     }
 }

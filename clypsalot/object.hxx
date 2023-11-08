@@ -138,6 +138,7 @@ namespace Clypsalot
         const Id id;
         const std::string& kind;
 
+        static std::string toString(const Object& object) noexcept;
         Object(const std::string& kind);
         Object(const Object&) = delete;
         virtual ~Object() noexcept;
@@ -250,11 +251,10 @@ namespace Clypsalot
     void scheduleObject(const SharedObject object);
     bool stopObject(const SharedObject& object);
     bool validateStateChange(const ObjectState oldState, const ObjectState newState) noexcept;
-    std::string asString(const Object& object) noexcept;
-    std::ostream& operator<<(std::ostream& os, const Object& object) noexcept;
-    std::string asString(const ObjectState state) noexcept;
-    std::ostream& operator<<(std::ostream& os, const ObjectState state) noexcept;
     std::string formatStateChange(const ObjectState oldState, const ObjectState newState) noexcept;
     std::string formatStateChange(const ObjectStateChangedEvent& event) noexcept;
+    std::string toString(const ObjectState state) noexcept;
+    std::ostream& operator<<(std::ostream& os, const Object& object) noexcept;
+    std::ostream& operator<<(std::ostream& os, const ObjectState state) noexcept;
     std::ostream& operator<<(std::ostream& os, const ObjectStateChangedEvent event) noexcept;
 }

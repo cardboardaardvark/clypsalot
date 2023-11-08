@@ -38,6 +38,7 @@ namespace Clypsalot
         OutputPort& from;
         InputPort& to;
 
+        static std::string toString(const PortLink& link) noexcept;
         PortLink(OutputPort& from, InputPort& to);
         PortLink(const PortLink&) = delete;
         virtual ~PortLink() = default;
@@ -75,6 +76,7 @@ namespace Clypsalot
     class OutputPort : public Port
     {
         public:
+        static std::string toString(const OutputPort& port) noexcept;
         OutputPort(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const InputPort& to) const noexcept;
         void setEndOfData() const noexcept;
@@ -84,6 +86,7 @@ namespace Clypsalot
     class InputPort : public Port
     {
         public:
+        static std::string toString(const InputPort& port) noexcept;
         InputPort(const std::string& name, const PortType& type, Object& parent);
         PortLink* findLink(const OutputPort& from) const noexcept;
         bool endOfData() const noexcept;
@@ -94,9 +97,6 @@ namespace Clypsalot
     std::vector<PortLink*> linkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     void unlinkPorts(OutputPort& output, InputPort& input);
     void unlinkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
-    std::string asString(const OutputPort& port) noexcept;
-    std::string asString(const InputPort& port) noexcept;
-    std::string asString(const PortLink& link) noexcept;
     std::ostream& operator<<(std::ostream& os, const OutputPort& port) noexcept;
     std::ostream& operator<<(std::ostream& os, const InputPort& port) noexcept;
     std::ostream& operator<<(std::ostream&os, const PortLink& link) noexcept;

@@ -27,8 +27,7 @@ TEST_CASE(PortLink_equality_operators)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
-    std::unique_lock object1Lock(*object1);
-    std::unique_lock object2Lock(*object2);
+    std::scoped_lock lock(*object1, *object2);
     auto& output = object1->publicAddOutput<MTestOutputPort>("output");
     auto& input1 = object2->publicAddInput<MTestInputPort>("input 1");
     auto& input2 = object2->publicAddInput<MTestInputPort>("input 2");
@@ -60,8 +59,7 @@ TEST_CASE(Port_hasLink)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
-    std::unique_lock object1Lock(*object1);
-    std::unique_lock object2Lock(*object2);
+    std::scoped_lock lock(*object1, *object2);
     auto& output = object1->publicAddOutput<MTestOutputPort>("output");
     auto& input1 = object2->publicAddInput<MTestInputPort>("input 1");
     auto& input2 = object2->publicAddInput<MTestInputPort>("input 2");
@@ -93,8 +91,7 @@ TEST_CASE(linkPorts_function_single)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
-    std::unique_lock object1Lock(*object1);
-    std::unique_lock object2Lock(*object2);
+    std::scoped_lock lock(*object1, *object2);
 
     auto& output = object1->publicAddOutput<MTestOutputPort>("output");
     auto& input = object2->publicAddInput<MTestInputPort>("input");
@@ -186,8 +183,7 @@ TEST_CASE(unlinkPorts_function_single)
 {
     auto object1 = TestObject::make();
     auto object2 = TestObject::make();
-    std::unique_lock object1Lock(*object1);
-    std::unique_lock object2Lock(*object2);
+    std::scoped_lock lock(*object1, *object2);
 
     auto& output = object1->publicAddOutput<MTestOutputPort>("output");
     auto& input = object2->publicAddInput<MTestInputPort>("input");
@@ -275,7 +271,7 @@ TEST_CASE(unlinkPorts_function_list)
 TEST_CASE(readiness)
 {
     auto object = TestObject::make();
-    std::unique_lock lock(*object);
+    std::scoped_lock lock(*object);
     auto& output = object->publicAddOutput<MTestOutputPort>("output");
     auto& input = object->publicAddInput<MTestInputPort>("input");
 

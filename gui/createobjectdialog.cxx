@@ -205,7 +205,7 @@ bool CreateObjectDialog::dialogNeeded()
 void CreateObjectDialog::initObject()
 {
     auto editor = ui->objectProperties;
-    std::unique_lock objectLock(*object);
+    std::scoped_lock objectLock(*object);
 
     outputTypes = object->addOutputTypes();
     inputTypes = object->addInputTypes();

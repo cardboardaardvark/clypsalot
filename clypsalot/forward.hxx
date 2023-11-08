@@ -59,7 +59,7 @@ namespace Clypsalot
     using ObjectConstructor = std::function<SharedObject ()>;
     using PropertyList = std::initializer_list<PropertyConfig>;
 
-    std::string asString(const LogSeverity severity) noexcept;
+    std::string toString(const LogSeverity severity) noexcept;
     PortLink* linkPorts(OutputPort& output, InputPort& input);
     std::vector<PortLink*> linkPorts(const std::vector<std::pair<OutputPort&, InputPort&>>& portList);
     void scheduleObject(Object&);

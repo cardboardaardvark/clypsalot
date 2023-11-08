@@ -60,7 +60,7 @@ namespace Clypsalot
 
     std::string EventSender::eventName(const std::type_index& type)
     {
-        std::unique_lock lock(eventNamesMutex);
+        std::scoped_lock lock(eventNamesMutex);
         return eventNames.at(type);
     }
 
@@ -77,13 +77,13 @@ namespace Clypsalot
             throw RuntimeError(makeString("Event is already registered with sender: ", eventName));
         }
 
-        std::unique_lock lock(eventNamesMutex);
+        std::scoped_lock lock(eventNamesMutex);
         eventNames[type] = eventName;
     }
 
     void EventSender::add(const EventTypeList& events)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         for(const auto event : events)
         {
@@ -93,7 +93,7 @@ namespace Clypsalot
 
     void EventSender::_subscribe(const std::type_info& type, SubscriberBase* subscriber)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         if (! subscribers.contains(type))
         {
@@ -132,7 +132,7 @@ namespace Clypsalot
      */
     void EventSender::cleanupSubscribers() noexcept
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         _cleanupSubscribers();
     }
 
@@ -150,7 +150,7 @@ namespace Clypsalot
 
         LOGGER(trace, "Sending event: ", typeName(type));
 
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         if (! subscribers.contains(type))
         {

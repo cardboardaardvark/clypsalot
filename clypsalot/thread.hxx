@@ -98,8 +98,8 @@ namespace Clypsalot
 #endif
         void lock() const;
         void unlock() const;
-        bool tryLock();
-        bool try_lock();
+        bool tryLock() const;
+        bool try_lock() const;
         /// @endcond
     };
 

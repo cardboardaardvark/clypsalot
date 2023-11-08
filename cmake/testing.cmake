@@ -36,7 +36,7 @@ function(add_clypsalot_test type name)
         add_dependencies(${CLYPSALOT_TEST_BIN_TARGET} ${TEST_TYPE_TARGET})
     endif()
 
-    add_executable(${TEST_TARGET} ${type}/${name}.cxx)
+    add_executable(${TEST_TARGET} EXCLUDE_FROM_ALL ${type}/${name}.cxx)
     target_compile_definitions(${TEST_TARGET} PRIVATE TEST_NAME="${TEST_NAME}")
     set_target_properties(${TEST_TARGET} PROPERTIES OUTPUT_NAME "${TEST_NAME}")
     target_link_libraries(${TEST_TARGET} PUBLIC ${CLYPSALOT_TEST_LIB_TARGET})

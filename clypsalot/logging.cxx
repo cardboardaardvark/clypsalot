@@ -24,6 +24,35 @@
 
 /// @file
 namespace Clypsalot {
+    /// @brief Return a default formatted version of the log event.
+    std::string LogEvent::toString(const LogEvent& event) noexcept
+    {
+        const auto microseconds = logEngine().runDuration(event.when);
+        const auto ticks = microseconds.count();
+        const auto seconds = ticks / MICROSECONDS;
+        const auto fractional = ticks - seconds;
+        std::string fileInfo;
+
+        if (event.file != nullptr)
+        {
+            std::string_view file(event.file);
+
+            if (file.starts_with(CLYPSALOT_PROJECT_DIR)) {
+                file.remove_prefix(std::strlen(CLYPSALOT_PROJECT_DIR));
+            }
+
+            fileInfo = makeString(file, ":", event.line, " ");
+        }
+
+        return makeString(
+            seconds, ".", fractional, " ",
+            event.thread, " ",
+            fileInfo,
+            event.severity, ": ",
+            event.message
+        );
+    }
+
     /// @brief Construct a new log destination setting the initial severity.
     LogDestination::LogDestination(const LogSeverity severity) :
         minSeverity(severity)
@@ -39,7 +68,7 @@ namespace Clypsalot {
     /// @brief Set a new minimum severity on the log destination.
     void LogDestination::severity(const LogSeverity severity) noexcept
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         minSeverity = severity;
     }
 
@@ -188,7 +217,7 @@ namespace Clypsalot {
     }
 
     /// @brief Return a human readable version of the given log severity.
-    std::string asString(const LogSeverity severity) noexcept
+    std::string toString(const LogSeverity severity) noexcept
     {
         switch (severity)
         {
@@ -203,45 +232,16 @@ namespace Clypsalot {
         }
     }
 
-    /// @brief Return a default formatted version of the log event.
-    std::string asString(const LogEvent& event) noexcept
-    {
-        const auto microseconds = logEngine().runDuration(event.when);
-        const auto ticks = microseconds.count();
-        const auto seconds = ticks / MICROSECONDS;
-        const auto fractional = ticks - seconds;
-        std::string fileInfo;
-
-        if (event.file != nullptr)
-        {
-            std::string_view file(event.file);
-
-            if (file.starts_with(CLYPSALOT_PROJECT_DIR)) {
-                file.remove_prefix(std::strlen(CLYPSALOT_PROJECT_DIR));
-            }
-
-            fileInfo = makeString(file, ":", event.line, " ");
-        }
-
-        return makeString(
-            seconds, ".", fractional, " ",
-            event.thread, " ",
-            fileInfo,
-            event.severity, ": ",
-            event.message
-        );
-    }
-
     /// @cond NO_DOCUMENT
     std::ostream& operator<<(std::ostream& os, const LogSeverity severity) noexcept
     {
-        os << asString(severity);
+        os << toString(severity);
         return os;
     }
 
     std::ostream& operator<<(std::ostream& os, const LogEvent& event) noexcept
     {
-        os << asString(event);
+        os << toString(event);
         return os;
     }
     /// @endcond

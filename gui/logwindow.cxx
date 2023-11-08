@@ -50,6 +50,12 @@ void LogWindowDestination::getEvents(std::list<Clypsalot::LogEvent>& list)
     needToSignal = true;
 }
 
+LogWindow* LogWindow::instance()
+{
+    static auto singleton = new LogWindow();
+    return singleton;
+}
+
 LogWindow::LogWindow(QWidget *parent) :
     QFrame(parent),
     ui(new Ui::LogWindow),
@@ -76,7 +82,7 @@ void LogWindow::initLogSeverities()
         picker->addItem(QString::fromStdString(severityName));
     }
 
-    picker->setCurrentText(QString::fromStdString(Clypsalot::asString(destination.severity())));
+    picker->setCurrentText(QString::fromStdString(Clypsalot::toString(destination.severity())));
 }
 
 void LogWindow::setSeverity(const QString& severityName)

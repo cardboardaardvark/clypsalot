@@ -55,6 +55,7 @@ class LogWindow : public QFrame
     void updateMaxMessages();
 
     public:
+    static LogWindow* instance();
     explicit LogWindow(QWidget *parent = nullptr);
     ~LogWindow();
 

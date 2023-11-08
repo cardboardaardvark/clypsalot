@@ -30,7 +30,7 @@ TEST_CASE(Object_destruction_event)
     BOOST_CHECK(handlerExecuted == false);
     {
         auto object = TestObject::make();
-        std::unique_lock lock(*object);
+        std::scoped_lock lock(*object);
 
         BOOST_CHECK(object->state() == ObjectState::initializing);
         subscription = object->subscribe<ObjectStoppedEvent>([](const ObjectEvent& event) {
@@ -45,8 +45,7 @@ TEST_CASE(Object_destruction_unlink)
 {
     auto source = ProcessingTestObject::make();
     auto sink = ProcessingTestObject::make();
-    std::unique_lock sourceLock(*source);
-    std::unique_lock sinkLock(*sink);
+    std::scoped_lock lock(*source, *sink);
     auto& output = source->publicAddOutput<PTestOutputPort>("output");
     auto& input = sink->publicAddInput<PTestInputPort>("input");
 

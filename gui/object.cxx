@@ -17,7 +17,7 @@
 #include <clypsalot/property.hxx>
 
 #include "logging.hxx"
-#include "main.hxx"
+#include "mainwindow.hxx"
 #include "object.hxx"
 
 using namespace std::placeholders;
@@ -77,12 +77,12 @@ ObjectOutput::ObjectOutput(Object* const parentObject, const QString& name, QGra
 
 void ObjectOutput::mousePressEvent(QGraphicsSceneMouseEvent *)
 {
-    mainWindow()->workArea()->startConnectionDrag();
+    MainWindow::instance()->workArea()->startConnectionDrag();
 }
 
 void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
-    auto workArea = mainWindow()->workArea();
+    auto workArea = MainWindow::instance()->workArea();
 
     auto lineStart = mapToScene(connectPos());
     auto cursorPos = mapToScene(event->pos());
@@ -99,10 +99,10 @@ void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
 void ObjectOutput::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
 {
-    mainWindow()->workArea()->resetConnectionDrag();
+    MainWindow::instance()->workArea()->resetConnectionDrag();
 
     auto lastPos = event->lastPos();
-    auto item = mainWindow()->workArea()->scene->itemAt(mapToScene(lastPos), QTransform());
+    auto item = MainWindow::instance()->workArea()->scene->itemAt(mapToScene(lastPos), QTransform());
 
     if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
     {
@@ -133,7 +133,7 @@ void ObjectOutput::createConnection(ObjectInput* to)
     catch (const Clypsalot::Error& e)
     {
         LOGGER(error, "Could not create a connection: ", e.what());
-        mainWindow()->showError(QString::fromStdString(e.what()));
+        MainWindow::instance()->errorMessage(QString::fromStdString(e.what()));
         return;
     }
 
@@ -149,7 +149,7 @@ PortConnection::PortConnection(ObjectOutput* const from, ObjectInput* const to, 
     line(QLineF(), this)
 {
     updatePosition(),
-    mainWindow()->workArea()->scene->addItem(this);
+    MainWindow::instance()->workArea()->scene->addItem(this);
 }
 
 void PortConnection::updatePosition()
@@ -241,7 +241,7 @@ void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayo
     {
         QString value;
 
-        if (property.defined()) value = QString::fromStdString(property.asString());
+        if (property.defined()) value = QString::fromStdString(property.valueToString());
 
         auto qName = QString::fromStdString(name);
         auto nameLabel = new WorkAreaLabelWidget(qName);
@@ -267,7 +267,7 @@ void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent& event)
     {
         QString value;
 
-        if (property.defined()) value = QString::fromStdString(property.asString());
+        if (property.defined()) value = QString::fromStdString(property.valueToString());
         values.append({QString::fromStdString(name), value});
     }
 
@@ -298,7 +298,7 @@ QVariant Object::itemChange(const GraphicsItemChange change, const QVariant& val
 
 void Object::updateState(const Clypsalot::ObjectState state)
 {
-    info->state->setText(QString::fromStdString(Clypsalot::asString(state)));
+    info->state->setText(QString::fromStdString(Clypsalot::toString(state)));
 }
 
 void Object::updateProperties(const QList<std::pair<QString, QString>>& values)

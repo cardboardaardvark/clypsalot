@@ -22,7 +22,7 @@ std::shared_ptr<ProcessingTestObject> makeTestObject(Network& network)
 std::shared_ptr<ProcessingTestObject> makeSourceObject(Network& network)
 {
     auto object = makeTestObject(network);
-    std::unique_lock lock(*object);
+    std::scoped_lock lock(*object);
     object->addOutput(PTestPortType::typeName, "output");
     object->configure();
     return object;
@@ -31,7 +31,7 @@ std::shared_ptr<ProcessingTestObject> makeSourceObject(Network& network)
 std::shared_ptr<ProcessingTestObject> makeSinkObject(Network& network)
 {
     auto object = makeTestObject(network);
-    std::unique_lock lock(*object);
+    std::scoped_lock lock(*object);
     object->addInput(PTestPortType::typeName, "input");
     object->configure();
     return object;
@@ -40,7 +40,7 @@ std::shared_ptr<ProcessingTestObject> makeSinkObject(Network& network)
 std::shared_ptr<ProcessingTestObject> makeFilterObject(Network& network)
 {
     auto object = makeTestObject(network);
-    std::unique_lock lock(*object);
+    std::scoped_lock lock(*object);
     object->publicAddOutput<PTestOutputPort>("output");
     object->publicAddInput<PTestInputPort>("input");
     object->configure();
@@ -49,8 +49,7 @@ std::shared_ptr<ProcessingTestObject> makeFilterObject(Network& network)
 
 void linkObjects(const SharedObject& from, const SharedObject& to)
 {
-    std::unique_lock fromLock(*from);
-    std::unique_lock toLock(*to);
+    std::scoped_lock lock(*from, *to);
     linkPorts(from->output("output"), to->input("input"));
 }
 
@@ -69,7 +68,7 @@ void process()
     objects.push_back(makeSinkObject(network));
 
     {
-        std::unique_lock lock(*objects.at(5));
+        std::scoped_lock lock(*objects.at(5));
         objects.at(5)->property("Max Process").sizeValue(5);
     }
 
@@ -91,6 +90,7 @@ void process()
 int main()
 {
     logEngine().makeDestination<ConsoleDestination>(LogSeverity::trace);
+
     initThreadQueue(0);
 
     importModule(testModuleDescriptor());

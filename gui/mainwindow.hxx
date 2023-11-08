@@ -37,10 +37,12 @@ class MainWindow : public QMainWindow
     void statusUpdate(const QString& message);
 
     public:
+    static MainWindow* instance();
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
     WorkArea* workArea();
-    void showError(const QString& message);
+    void errorMessage(const QString& message);
+    void statusMessage(const QString& message);
 
     public Q_SLOTS:
     void loadModules();

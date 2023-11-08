@@ -35,27 +35,26 @@ TEST_CASE(threadQueuePost_function)
 {
     std::condition_variable_any condVar;
     Mutex mutex;
-    std::unique_lock lock(mutex);
+    std::unique_lock outsideLock(mutex);
     std::thread::id mainThreadId = std::this_thread::get_id();
     bool didRun = false;
 
     BOOST_CHECK(didRun == false);
 
-    lock.unlock();
-
     threadQueuePost([&]
     {
+        std::scoped_lock insideLock(mutex);
         BOOST_CHECK(std::this_thread::get_id() != mainThreadId);
         didRun = true;
         condVar.notify_all();
     });
 
-    lock.lock();
-
-    condVar.wait(lock, [&didRun]
+    condVar.wait(outsideLock, [&didRun]
     {
        return didRun;
     });
+
+    BOOST_CHECK(didRun);
 }
 
 TEST_CASE(THREAD_CALL_MACRO)

@@ -1,4 +1,7 @@
-This software is licensed under the terms of the GNU LESSER GENERAL
+The Clypsalot GUI application is licensed under the terms of the
+GNU GENERAL PUBLIC LICENSE version 3 or any later version.
+
+The Clypsalot library is licensed under the terms of the GNU LESSER GENERAL
 PUBLIC LICENSE version 3 or any later version. The LGPL is an extension
 of the GNU GENERAL PUBLIC LICENSE.
 

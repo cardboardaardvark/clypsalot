@@ -14,8 +14,10 @@
 #include <iostream>
 #include <unistd.h>
 
+#include <QApplication>
+#include <QCommandLineParser>
+#include <QObject>
 #include <QString>
-#include <QStyleFactory>
 
 #include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
@@ -23,7 +25,8 @@
 #include <clypsalot/module.hxx>
 #include <clypsalot/util.hxx>
 
-#include "main.hxx"
+#include "logwindow.hxx"
+#include "mainwindow.hxx"
 #include "util.hxx"
 
 using namespace Clypsalot;
@@ -34,6 +37,7 @@ static const QString showLogWindowArg("show-log-window");
 static const QString threadsArg("threads");
 static const QString windowLogLevelArg("window-log-level");
 
+void initMetaTypes();
 static void parseCommandLine(QCommandLineParser& parser, const QApplication& application);
 static void shutdown();
 
@@ -47,9 +51,9 @@ int main(int argc, char *argv[])
     parseCommandLine(args, application);
 
     logEngine().makeDestination<ConsoleDestination>(logSeverity(args.value(logLevelArg).toStdString()));
-    if (args.isSet(windowLogLevelArg)) logWindow()->setSeverity(args.value(windowLogLevelArg));
+    if (args.isSet(windowLogLevelArg)) LogWindow::instance()->setSeverity(args.value(windowLogLevelArg));
     // Make sure the LogWindow singleton exists before things start logging
-    logWindow();
+    LogWindow::instance();
 
     LOGGER(info, "Clypsalot GUI version ", CLYPSALOT_GUI_VERSION, " starting");
     LOGGER(info, "Using Clypsalot version ", version());
@@ -57,25 +61,13 @@ int main(int argc, char *argv[])
     initMetaTypes();
     initThreadQueue(args.value(threadsArg).toUInt());
 
-    openWindow(mainWindow());
-    if (args.isSet(showLogWindowArg)) openWindow(logWindow());
+    openWindow(MainWindow::instance());
+    if (args.isSet(showLogWindowArg)) openWindow(LogWindow::instance());
 
-    QMetaObject::invokeMethod(mainWindow(), "loadModules", Qt::QueuedConnection);
+    QMetaObject::invokeMethod(MainWindow::instance(), "loadModules", Qt::QueuedConnection);
     auto result = application.exec();
     shutdown();
     return result;
-}
-
-MainWindow* mainWindow()
-{
-    static auto singleton = new MainWindow();
-    return singleton;
-}
-
-LogWindow* logWindow()
-{
-    static auto singleton = new LogWindow();
-    return singleton;
 }
 
 void initMetaTypes()
@@ -101,7 +93,7 @@ static void shutdown()
     alarm(shutdownTime);
 
     LOGGER(debug, "Stopping objects");
-    mainWindow()->workArea()->stopObjects();
+    MainWindow::instance()->workArea()->stopObjects();
     LOGGER(debug, "Shutting down thread queue");
     shutdownThreadQueue();
     LOGGER(debug, "Done shutting down");
@@ -150,7 +142,7 @@ static void parseCommandLine(QCommandLineParser& parser, const QApplication& app
         QStringList({logLevelArg, "l"}),
         "Console log level (" + makeLogLevelsText() + ")",
         "severity",
-        QString::fromStdString(asString(LogSeverity::fatal))
+        QString::fromStdString(toString(LogSeverity::fatal))
     ));
 
     parser.addOption(QCommandLineOption

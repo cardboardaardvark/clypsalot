@@ -17,12 +17,17 @@
 
 #include "test/module/module.hxx"
 
-#include "logging.hxx"
-#include "main.hxx"
+#include "logwindow.hxx"
 #include "mainwindow.hxx"
 #include "util.hxx"
 
 #include "./ui_mainwindow.h"
+
+MainWindow* MainWindow::instance()
+{
+    static auto singleton = new MainWindow();
+    return singleton;
+}
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
@@ -59,15 +64,15 @@ void MainWindow::loadModules()
 {
     Clypsalot::threadQueuePost([this]
     {
-        Q_EMIT statusUpdate("Loading modules");
+        statusMessage("Loading modules");
         Clypsalot::importModule(Clypsalot::testModuleDescriptor());
-        Q_EMIT statusUpdate("Modules loaded");
+        statusMessage("Modules loaded");
     });
 }
 
 void MainWindow::showLogWindow()
 {
-    openWindow(logWindow());
+    openWindow(LogWindow::instance());
 }
 
 WorkArea* MainWindow::workArea()
@@ -75,7 +80,12 @@ WorkArea* MainWindow::workArea()
     return ui->workArea;
 }
 
-void MainWindow::showError(const QString& message)
+void MainWindow::statusMessage(const QString& message)
 {
-    Q_EMIT statusUpdate(makeQString("ERROR: ", message));
+    Q_EMIT statusUpdate(message);
+}
+
+void MainWindow::errorMessage(const QString& message)
+{
+    statusMessage(makeQString("ERROR: ", message));
 }

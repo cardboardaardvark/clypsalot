@@ -53,6 +53,12 @@ namespace Clypsalot
     int stringToInt(const std::string& value);
     size_t stringToSize(const std::string& value);
 
+    template <typename T>
+    std::string toString(const T& item)
+    {
+        return T::toString(item);
+    }
+
     ///@cond NO_DOCUMENT
     template <typename Arg>
     void _makeStringAppender(std::stringstream& sstream, const Arg& arg) noexcept {

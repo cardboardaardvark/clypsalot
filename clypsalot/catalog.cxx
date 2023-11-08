@@ -29,7 +29,7 @@ namespace Clypsalot
 
     void PortTypeCatalog::add(const PortTypeDescriptor& descriptor)
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
 
         if (catalogEntries.contains(descriptor.name))
         {
@@ -42,7 +42,7 @@ namespace Clypsalot
 
     std::vector<std::string> PortTypeCatalog::names() const noexcept
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
         std::vector<std::string> result;
 
         result.reserve(catalogEntries.size());
@@ -57,7 +57,7 @@ namespace Clypsalot
 
     const PortType& PortTypeCatalog::instance(const std::string& name) const
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
 
         if (! catalogEntries.contains(name))
         {
@@ -69,7 +69,7 @@ namespace Clypsalot
 
     const PortTypeDescriptor& PortTypeCatalog::descriptor(const std::string& name) const
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
 
         if (! catalogEntries.contains(name)) throw KeyError(makeString("No known type type name: ", name), name);
 
@@ -88,7 +88,7 @@ namespace Clypsalot
 
     void ObjectCatalog::add(const ObjectDescriptor& descriptor)
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
 
         if (catalogEntries.contains(descriptor.kind))
         {
@@ -101,7 +101,7 @@ namespace Clypsalot
 
     std::vector<std::string> ObjectCatalog::kinds() const noexcept
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
         std::vector<std::string> result;
 
         result.reserve(catalogEntries.size());
@@ -116,7 +116,7 @@ namespace Clypsalot
 
     SharedObject ObjectCatalog::make(const std::string& kind) const
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
 
         if (! catalogEntries.contains(kind))
         {

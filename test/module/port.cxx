@@ -165,14 +165,14 @@ namespace Clypsalot
 
     bool PTestPortLink::dirty() const noexcept
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         return dirtyFlag;
     }
 
     void PTestPortLink::dirty(const bool isDirty) noexcept
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         dirtyFlag = isDirty;
     }

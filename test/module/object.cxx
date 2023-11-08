@@ -62,7 +62,7 @@ namespace Clypsalot
     ProcessingTestObject::ProcessingTestObject(const std::string& kind) :
         TestObject(kind)
     {
-        std::unique_lock lock(*this);
+        std::scoped_lock lock(*this);
 
         addProperties(processingProperties);
 

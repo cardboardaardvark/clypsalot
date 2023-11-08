@@ -54,14 +54,17 @@ namespace Clypsalot
         ObjectEvent(sender)
     { }
 
+    std::string Object::toString(const Object& object) noexcept
+    {
+        return std::string("Object #") + std::to_string(object.id);
+    }
+
     Object::Object(const std::string& kind) :
         id(nextObjectId++),
         kind(kind)
     {
         OBJECT_LOGGER(debug, "Object is being constructed: ", kind);
-
-        std::unique_lock lock(mutex);
-
+        std::scoped_lock lock(mutex);
         events->add(objectEvents);
     }
 
@@ -946,7 +949,7 @@ namespace Clypsalot
 
             for (const auto& check : checkObjects)
             {
-                std::unique_lock checkLock(*check);
+                std::scoped_lock checkLock(*check);
 
                 if (check->ready())
                 {
@@ -1045,18 +1048,13 @@ namespace Clypsalot
         FATAL_ERROR(makeString("Unhandled state transition validation: ", formatStateChange(oldState, newState)));
     }
 
-    std::string asString(const Object& object) noexcept
-    {
-        return std::string("Object #") + std::to_string(object.id);
-    }
-
     std::ostream& operator<<(std::ostream& os, const Object& object) noexcept
     {
-        os << asString(object);
+        os << toString(object);
         return os;
     }
 
-    std::string asString(const ObjectState state) noexcept
+    std::string toString(const ObjectState state) noexcept
     {
         switch (state)
         {
@@ -1075,7 +1073,7 @@ namespace Clypsalot
 
     std::ostream& operator<<(std::ostream& os, const ObjectState state) noexcept
     {
-        os << asString(state);
+        os << toString(state);
         return os;
     }
 

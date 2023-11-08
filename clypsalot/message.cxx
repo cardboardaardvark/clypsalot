@@ -42,7 +42,7 @@ namespace Clypsalot
     {
         LOGGER(trace, "Registering new message handler for ", typeName(type));
 
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         if (handlers.contains(type)) throw RuntimeError(makeString("Handler already registered for message type: ", typeName(type)));
 
@@ -51,7 +51,7 @@ namespace Clypsalot
 
     bool MessageProcessor::registered(const std::type_info& type)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         return handlers.contains(type);
     }
@@ -61,7 +61,7 @@ namespace Clypsalot
         const auto& type = typeid(*message);
         LOGGER(trace, "Receiving Message: ", typeName(type));
 
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         if (! handlers.contains(type))
         {

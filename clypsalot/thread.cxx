@@ -49,7 +49,7 @@ namespace Clypsalot
      */
     bool DebugMutex::locked() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return _locked();
     }
 
@@ -64,13 +64,13 @@ namespace Clypsalot
      */
     bool DebugMutex::haveLock() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return _haveLock();
     }
 
     size_t DebugMutex::lockCount() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return lockCounter;
     }
 
@@ -105,7 +105,7 @@ namespace Clypsalot
      */
     void DebugMutex::unlock()
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
 
         if (! _haveLock()) throw MutexUnlockError("Mutex was not locked by the calling thread");
 
@@ -135,7 +135,7 @@ namespace Clypsalot
      */
     bool DebugMutex::tryLock()
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
 
         if (_haveLock()) throw MutexLockError("tryLock() would result in recursive locking of mutex");
 
@@ -181,6 +181,16 @@ namespace Clypsalot
         mutex.unlock();
     }
 
+    bool Lockable::tryLock() const
+    {
+        return mutex.try_lock();
+    }
+
+    bool Lockable::try_lock() const
+    {
+        return tryLock();
+    }
+
     RecursiveDebugMutex::RecursiveDebugMutex() :
         DebugMutex(true)
     { }
@@ -197,7 +207,7 @@ namespace Clypsalot
     /// @brief Returns true if any thread holds an exclusive lock on the mutex
     bool SharedDebugMutex::locked() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return _locked();
     }
 
@@ -209,7 +219,7 @@ namespace Clypsalot
     /// @brief Returns true if the calling thread holds an exclusive lock
     bool SharedDebugMutex::haveLock() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return _haveLock();
     }
 
@@ -243,7 +253,7 @@ namespace Clypsalot
      */
     bool SharedDebugMutex::tryLock()
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
 
         if (_haveLock())
         {
@@ -276,7 +286,7 @@ namespace Clypsalot
     /// @brief Release an exclusive lock held on the shared mutex.
     void SharedDebugMutex::unlock()
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
 
         if (std::this_thread::get_id() != lockedBy)
         {
@@ -295,7 +305,7 @@ namespace Clypsalot
     /// @brief Returns true if any thread holds a shared lock on the mutex.
     bool SharedDebugMutex::sharedLocked() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return _sharedLocked();
     }
 
@@ -319,7 +329,7 @@ namespace Clypsalot
     /// @brief Returns true if the calling thread holds either a shared or exclusive lock
     bool SharedDebugMutex::haveSharedLock() const
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
         return _haveSharedLock();
     }
 
@@ -358,7 +368,7 @@ namespace Clypsalot
      */
     bool SharedDebugMutex::tryLockShared()
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
 
         if (_haveLock())
         {
@@ -389,7 +399,7 @@ namespace Clypsalot
      /// @brief Release a shared lock on the mutex.
     void SharedDebugMutex::unlockShared()
     {
-        std::unique_lock lock(metaMutex);
+        std::scoped_lock lock(metaMutex);
 
         if (_haveLock())
         {
@@ -494,14 +504,14 @@ namespace Clypsalot
 
     size_t ThreadQueue::threads()
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         return numThreads;
     }
 
     void ThreadQueue::threads(const size_t threads)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         numThreads = threads;
         adjustThreads();
@@ -557,7 +567,7 @@ namespace Clypsalot
 
     void ThreadQueue::post(const JobType& job)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         jobs.push_back(job);
         // TODO Until more condition variables are added to handle the case of removing threads
@@ -569,14 +579,14 @@ namespace Clypsalot
 
     void initThreadQueue(const size_t numThreads)
     {
-        std::unique_lock lock(threadQueueSingletonMutex);
+        std::scoped_lock lock(threadQueueSingletonMutex);
         assert(threadQueueSingleton == nullptr);
         threadQueueSingleton = new ThreadQueue(numThreads);
     }
 
     void shutdownThreadQueue()
     {
-        std::unique_lock lock(threadQueueSingletonMutex);
+        std::scoped_lock lock(threadQueueSingletonMutex);
         assert(threadQueueSingleton != nullptr);
         delete threadQueueSingleton;
         threadQueueSingleton = nullptr;
@@ -584,14 +594,14 @@ namespace Clypsalot
 
     ThreadQueue& threadQueue()
     {
-        std::unique_lock lock(threadQueueSingletonMutex);
+        std::scoped_lock lock(threadQueueSingletonMutex);
         assert(threadQueueSingleton != nullptr);
         return *threadQueueSingleton;
     }
 
     void threadQueuePost(const ThreadQueue::JobType& job)
     {
-        std::unique_lock lock(threadQueueSingletonMutex);
+        std::scoped_lock lock(threadQueueSingletonMutex);
         assert(threadQueueSingleton != nullptr);
         threadQueueSingleton->post(job);
     }

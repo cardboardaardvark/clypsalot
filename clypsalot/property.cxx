@@ -111,7 +111,7 @@ namespace Clypsalot
         if (! hasValue) throw UndefinedError(makeString("Property ", name, " does not have a value"));
     }
 
-    std::string Property::asString() const
+    std::string Property::valueToString() const
     {
         assert(parent.haveLock());
 
@@ -324,7 +324,7 @@ namespace Clypsalot
         set(value);
     }
 
-    std::string asString(const PropertyType type) noexcept
+    std::string toString(const PropertyType type) noexcept
     {
         switch (type)
         {
@@ -339,7 +339,7 @@ namespace Clypsalot
 
     std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept
     {
-        os << asString(type);
+        os << toString(type);
         return os;
     }
 }

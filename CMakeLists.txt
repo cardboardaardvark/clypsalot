@@ -6,10 +6,6 @@ if (NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE Debug)
 endif()
 
-if (NOT DEFINED CLYPSALOT_BUILD_GUI)
-    set(CLYPSALOT_BUILD_GUI yes)
-endif()
-
 project(clypsalot VERSION 0.0.0 LANGUAGES CXX)
 
 include(ProcessorCount)
@@ -81,6 +77,6 @@ if(${DOXYGEN_FOUND})
     doxygen_add_docs(doc WORKING_DIRECTORY ${CLYPSALOT_LIBRARY_SOURCE_DIRECTORY})
 endif()
 
-if(${CLYPSALOT_BUILD_GUI})
+if(${Qt6_FOUND})
     add_subdirectory(gui/)
 endif()

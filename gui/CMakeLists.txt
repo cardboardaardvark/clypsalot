@@ -6,8 +6,6 @@ set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
-
 set(
     PROJECT_SOURCES
 
@@ -15,7 +13,7 @@ set(
     createobjectdialog.hxx createobjectdialog.cxx createobjectdialog.ui
     data.hxx data.cxx
     logwindow.hxx logwindow.cxx logwindow.ui
-    main.hxx main.cxx
+    main.cxx
     mainwindow.hxx mainwindow.cxx mainwindow.ui
     object.hxx object.cxx
     objectproperties.hxx objectproperties.cxx

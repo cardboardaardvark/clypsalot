@@ -36,7 +36,7 @@ namespace Clypsalot
     {
         messages = nullptr;
 
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         _stop();
     }
 
@@ -90,7 +90,7 @@ namespace Clypsalot
 
     void Network::handleObjectEvent(const ObjectShutdownEvent& event)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         std::map<SharedObject, bool> seenObjects;
 
         if (! running)
@@ -137,7 +137,7 @@ namespace Clypsalot
 
     SharedObject Network::makeObject(const std::string& kind)
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
 
         auto object = objectCatalog().make(kind);
         _addObject(object);
@@ -152,7 +152,7 @@ namespace Clypsalot
 
         for (const auto& managed : managedObjects)
         {
-            std::unique_lock objectLock(*managed.object);
+            std::scoped_lock objectLock(*managed.object);
             startObject(managed.object);
         }
 
@@ -162,7 +162,7 @@ namespace Clypsalot
 
     void Network::start()
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         _start();
     }
 
@@ -188,7 +188,7 @@ namespace Clypsalot
         for (const auto& managed : managedObjects)
         {
             LOGGER(trace, "Stopping object: ", *managed.object);
-            std::unique_lock objectLock(*managed.object);
+            std::scoped_lock objectLock(*managed.object);
             stopObject(managed.object);
         }
 
@@ -198,7 +198,7 @@ namespace Clypsalot
 
     void Network::stop()
     {
-        std::unique_lock lock(mutex);
+        std::scoped_lock lock(mutex);
         _stop();
     }
 }

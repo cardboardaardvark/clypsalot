@@ -93,7 +93,7 @@ namespace Clypsalot
         ~Property();
         void operator=(const Property&) = delete;
         bool defined() const;
-        std::string asString() const;
+        std::string valueToString() const;
         BooleanType booleanValue() const;
         void booleanValue(const BooleanType value);
         FileType fileValue() const;
@@ -110,6 +110,6 @@ namespace Clypsalot
         void anyValue(const std::any& value);
     };
 
-    std::string asString(const PropertyType type) noexcept;
+    std::string toString(const PropertyType type) noexcept;
     std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept;
 }

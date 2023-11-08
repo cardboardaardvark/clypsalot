@@ -44,14 +44,14 @@ namespace Clypsalot {
 
     static std::initializer_list<std::string> logSeverityNames =
     {
-        asString(LogSeverity::trace),
-        asString(LogSeverity::debug),
-        asString(LogSeverity::verbose),
-        asString(LogSeverity::info),
-        asString(LogSeverity::notice),
-        asString(LogSeverity::warn),
-        asString(LogSeverity::error),
-        asString(LogSeverity::fatal),
+        toString(LogSeverity::trace),
+        toString(LogSeverity::debug),
+        toString(LogSeverity::verbose),
+        toString(LogSeverity::info),
+        toString(LogSeverity::notice),
+        toString(LogSeverity::warn),
+        toString(LogSeverity::error),
+        toString(LogSeverity::fatal),
     };
 
     /// @brief All of the data associated with a log message.
@@ -78,6 +78,8 @@ namespace Clypsalot {
         const LogSeverity severity;
         /// @brief Plain text message associated with the log event.
         const std::string message;
+
+        static std::string toString(const LogEvent& event) noexcept;
     };
 
     /// @brief Base class for objects that receive LogEvents from the LogEngine.
@@ -127,7 +129,7 @@ namespace Clypsalot {
         T& makeDestination(Args&&... args) noexcept
         {
             auto destination = new T(args...);
-            std::unique_lock lock(mutex);
+            std::scoped_lock lock(mutex);
             destinations.push_back(destination);
             return *destination;
         }
@@ -144,8 +146,7 @@ namespace Clypsalot {
     LogSeverity logSeverity(const std::string& name);
     void deliverLogEvent(const char* source, const char* file, const uint32_t line, const LogSeverity severity, const std::string message) noexcept;
     void deliverLogEvent(const char* source, const char* file, const uint32_t line, const LogSeverity severity, const LogMessageGenerator& generator) noexcept;
-    std::string asString(const LogSeverity severity) noexcept;
-    std::string asString(const LogEvent& event) noexcept;
+    std::string toString(const LogSeverity severity) noexcept;
     /// @cond NO_DOCUMENT
     std::ostream& operator<<(std::ostream& os, const LogEvent& event) noexcept;
     std::ostream& operator<<(std::ostream& os, const LogSeverity severity) noexcept;

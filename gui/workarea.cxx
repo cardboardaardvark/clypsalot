@@ -14,7 +14,7 @@
 
 #include "createobjectdialog.hxx"
 #include "logging.hxx"
-#include "main.hxx"
+#include "mainwindow.hxx"
 #include "object.hxx"
 #include "workarea.hxx"
 
@@ -132,7 +132,7 @@ void WorkAreaScene::catalogDropEvent(QGraphicsSceneDragDropEvent* event)
 
 void WorkAreaScene::catalogObjectDrop(const CatalogObjectItem* const item, const QPointF& position)
 {
-    CreateObjectDialog dialog(mainWindow(), item->descriptor);
+    CreateObjectDialog dialog(MainWindow::instance(), item->descriptor);
 
     if (! dialog.exec()) return;
 
