@@ -10,7 +10,7 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-#include <clypsalot/logging.hxx>
+#include <clypsalot/logger.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/property.hxx>
 #include <clypsalot/util.hxx>

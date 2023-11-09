@@ -19,7 +19,7 @@
 
 #include "createobjectdialog.hxx"
 #include "data.hxx"
-#include "logging.hxx"
+#include "logger.hxx"
 #include "ui_createobjectdialog.h"
 
 static const int propertiesTabIndex = 0;

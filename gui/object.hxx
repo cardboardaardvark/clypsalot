@@ -12,6 +12,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include <QGraphicsGridLayout>
 #include <QGraphicsLinearLayout>
 #include <QGraphicsObject>
@@ -87,6 +89,12 @@ class ObjectInfo : public WorkAreaWidget
     explicit ObjectInfo(QGraphicsItem* parent = nullptr);
 };
 
+struct ObjectUpdate
+{
+    Clypsalot::ObjectState state;
+    std::vector<std::pair<std::string, std::string>> propertyValues;
+};
+
 class Object : public WorkAreaWidget
 {
     Q_OBJECT
@@ -94,6 +102,7 @@ class Object : public WorkAreaWidget
     ObjectInfo* info;
     std::map<QString, WorkAreaLabelWidget*> m_propertyValues;
     std::vector<std::shared_ptr<Clypsalot::Subscription>> subscriptions;
+    std::atomic_bool checkObjectSignalNeeded = ATOMIC_VAR_INIT(true);
 
     protected:
     void handleEvent(const Clypsalot::ObjectStateChangedEvent& event);
@@ -102,12 +111,10 @@ class Object : public WorkAreaWidget
     void updatePortConnectionPositions();
 
     Q_SIGNALS:
-    void stateChanged(Clypsalot::ObjectState state);
-    void propertyValues(const QList<std::pair<QString, QString>>& values);
+    void checkObject();
 
     protected Q_SLOTS:
-    void updateState(const Clypsalot::ObjectState state);
-    void updateProperties(const QList<std::pair<QString, QString>>& values);
+    void updateObject();
 
     public:
     const Clypsalot::SharedObject object;

@@ -14,7 +14,7 @@
 
 #include <clypsalot/property.hxx>
 
-#include "logging.hxx"
+#include "logger.hxx"
 #include "objectproperties.hxx"
 
 ObjectPropertiesEditor::ObjectPropertiesEditor(QWidget* parent) :

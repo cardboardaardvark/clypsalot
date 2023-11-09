@@ -14,8 +14,7 @@
 
 #define LOG_SOURCE "clypsalot-gui"
 
-#include <clypsalot/logging.hxx>
-#include <clypsalot/macros.hxx>
-#include <clypsalot/util.hxx>
+#include <clypsalot/logger.hxx>
 
+// Need to ensure that the streams << overloads are included
 #include "util.hxx"

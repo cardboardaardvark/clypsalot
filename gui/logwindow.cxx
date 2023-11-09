@@ -15,8 +15,9 @@
 #include <QScrollBar>
 
 #include <clypsalot/error.hxx>
+#include <clypsalot/macros.hxx>
 
-#include "logging.hxx"
+#include "logger.hxx"
 #include "logwindow.hxx"
 #include "ui_logwindow.h"
 
@@ -42,12 +43,15 @@ void LogWindowDestination::handleLogEvent(const Clypsalot::LogEvent& event) noex
     }
 }
 
-void LogWindowDestination::getEvents(std::list<Clypsalot::LogEvent>& list)
+std::list<Clypsalot::LogEvent> LogWindowDestination::getEvents()
 {
+    std::list<Clypsalot::LogEvent> retval;
     std::scoped_lock lock(queueMutex);
 
-    list = std::move(eventQueue);
+    retval = std::move(eventQueue);
     needToSignal = true;
+
+    return retval;
 }
 
 LogWindow* LogWindow::instance()
@@ -104,8 +108,7 @@ void LogWindow::setSeverity(const QString& severityName)
 
 void LogWindow::updateMessages()
 {
-    std::list<Clypsalot::LogEvent> events;
-    destination.getEvents(events);
+    auto events = destination.getEvents();
     auto size = events.size();
     auto maxMessages = ui->maxMessages->sizeValue();
     size_t startAt = 0;

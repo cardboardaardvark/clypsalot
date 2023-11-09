@@ -19,23 +19,6 @@
  * file must never be included in a header file.
  */
 
-/// @brief The plain text name of a LogEvent source that will be used by the LOGGER and LLOGGER macros.
-#ifndef LOG_SOURCE
-#define LOG_SOURCE "clypsalot"
-#endif
-
-/// @brief A convenience wrapper around the string version of the deliverLogEvent() function that
-/// automatically adds in the file name and line number of the locaton where the message is sent.
-#define LOGGER(severity, ...) Clypsalot::deliverLogEvent(LOG_SOURCE, __FILE__, __LINE__, Clypsalot::LogSeverity::severity, [&]() -> std::string { return Clypsalot::makeString(__VA_ARGS__); })
-
-/// @brief A convenience wrappar around the generator version of the deliverLogEvent() function
-/// that automatically adds in the file name and line number of the location where the message is
-/// sent.
-#define LLOGGER(severity, block) Clypsalot::deliverLogEvent(LOG_SOURCE, __FILE__, __LINE__, Clypsalot::LogSeverity::severity, [&]() -> std::string block)
-
-#define OBJECT_LOGGER(severity, ...) LOGGER(severity, *this, ": ", __VA_ARGS__)
-#define PORT_LOGGER(severity, ...) LOGGER(severity, *this, ": ", __VA_ARGS__)
-
 /**
  * @brief A convience macro for automatically giving the file and line data to the \ref fatalError() function.
  */
@@ -43,4 +26,4 @@
 
 // TODO There has got to be a better way to avoid having to specify the return type
 // when invoking threadQueueCall()
-#define THREAD_CALL(lambda) threadQueueCall(std::function([] lambda))
+#define THREAD_CALL(lambda) Clypsalot::threadQueueCall(std::function([&] lambda))

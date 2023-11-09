@@ -3,7 +3,7 @@
 
 #include <clypsalot/catalog.hxx>
 #include <clypsalot/error.hxx>
-#include <clypsalot/logging.hxx>
+#include <clypsalot/logger.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/module.hxx>
 #include <clypsalot/object.hxx>

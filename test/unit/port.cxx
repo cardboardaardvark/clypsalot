@@ -10,7 +10,6 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-#include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/port.hxx>
 #include <clypsalot/util.hxx>
@@ -36,10 +35,6 @@ TEST_CASE(PortLink_equality_operators)
     auto link1 = type.makeLink(output, input1);
     auto link2 = type.makeLink(output, input1);
     auto link3 = type.makeLink(output, input2);
-
-    LOGGER(debug, "link1: ", *link1);
-    LOGGER(debug, "link2: ", *link2);
-    LOGGER(debug, "link3: ", *link3);
 
     BOOST_CHECK(*link1 == *link1);
     BOOST_CHECK(*link1 == *link2);

@@ -12,10 +12,8 @@
 
 #include <cassert>
 
-#include <clypsalot/logging.hxx>
-#include <clypsalot/macros.hxx>
+#include <clypsalot/logger.hxx>
 #include <clypsalot/property.hxx>
-#include <clypsalot/util.hxx>
 
 #include "test/module/object.hxx"
 #include "test/module/port.hxx"

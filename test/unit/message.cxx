@@ -12,7 +12,6 @@
 
 #include <condition_variable>
 
-#include <clypsalot/logging.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/message.hxx>
 #include <clypsalot/thread.hxx>

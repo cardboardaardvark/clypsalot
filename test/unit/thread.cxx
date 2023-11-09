@@ -17,7 +17,7 @@
 #include <thread>
 
 #include <clypsalot/error.hxx>
-#include <clypsalot/logging.hxx>
+#include <clypsalot/logger.hxx>
 #include <clypsalot/macros.hxx>
 #include <clypsalot/util.hxx>
 

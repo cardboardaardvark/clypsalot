@@ -13,7 +13,7 @@
 #include <QGraphicsSceneDragDropEvent>
 
 #include "createobjectdialog.hxx"
-#include "logging.hxx"
+#include "logger.hxx"
 #include "mainwindow.hxx"
 #include "object.hxx"
 #include "workarea.hxx"

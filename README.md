@@ -5,10 +5,10 @@ effects procesing. The concept is basically [GNU Radio](https://en.wikipedia.org
 but for audio equalizers, noise gates and dynamic range compressors. However the core engine is
 not limited to just PCM audio data.
 
-Clypsalot is currently in development with major changes occuring constantly. Presently basic GUI
-functionality exists and non-audio test objects are able to run.
+Clypsalot is currently in development with major changes occuring constantly. Presently some basic
+GUI functionality exists and non-audio test objects are able to run.
 
-#Building
+# Building
 
 The project is written in C++20 and uses the CMake build system. Development is occuring
 under Debian Bookworm GNU/Linux using Clang version 17. Project goals include being compatible
@@ -36,3 +36,7 @@ is an example of how to do so from the root directory of the project:
 To build and run the software tests:
 
     cmake --build . -t validate
+
+To generate the documentation:
+
+    cmake --build . -t doc

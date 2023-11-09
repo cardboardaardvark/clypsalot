@@ -269,6 +269,29 @@ namespace Clypsalot
     ThreadQueue& threadQueue();
     void threadQueuePost(const ThreadQueue::JobType& job);
 
+    /**
+     * @brief Execute a procedure inside the thread queue and return the result.
+     * @param Any std::function to execute from inside the thread queue.
+     * @return The return value from procedure.
+     *
+     * This method executes the procedure specified as the argument inside the thread
+     * queue and blocks the caller until it is done executing. If the procedure returns
+     * a value then the value is returned by this method as well. If an exception is
+     * generated while executing the procedure then the procedure stops and the exception
+     * will be thrown again at the call site.
+     *
+     * This method addresses a priority inversion problem that exists when interacting
+     * with Objects and other things that execute inside the thread queue. In the future
+     * the thread queue may run at real time priority but Objects could be locked and interacted
+     * with by a non-realtime priority thread. This method allows non-realtime threads to
+     * interact with the Object in a normal blocking way and with out doing it from a
+     * non-realtime thread.
+     *
+     * Users of this method should do as little work as possible inside the thread queue reserving
+     * it for the time critical tasks.
+     *
+     * See also: The @ref THREAD_CALL macro to simplify usage with a lambda expression.
+     */
     template <typename T>
     T threadQueueCall(const std::function<T ()>& job)
     {

@@ -10,13 +10,17 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <memory>
+
 #include <QGraphicsSceneMouseEvent>
 
+#include <clypsalot/macros.hxx>
 #include <clypsalot/object.hxx>
 #include <clypsalot/port.hxx>
 #include <clypsalot/property.hxx>
+#include <clypsalot/thread.hxx>
 
-#include "logging.hxx"
+#include "logger.hxx"
 #include "mainwindow.hxx"
 #include "object.hxx"
 
@@ -83,7 +87,6 @@ void ObjectOutput::mousePressEvent(QGraphicsSceneMouseEvent *)
 void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 {
     auto workArea = MainWindow::instance()->workArea();
-
     auto lineStart = mapToScene(connectPos());
     auto cursorPos = mapToScene(event->pos());
     auto item = workArea->scene->itemAt(cursorPos, QTransform());
@@ -123,12 +126,16 @@ void ObjectOutput::createConnection(ObjectInput* to)
     try {
         auto fromObject = parentObject->object;
         auto toObject = to->parentObject->object;
-        std::scoped_lock fromLock(*fromObject);
-        std::scoped_lock toLock(*toObject);
-        auto& fromPort = fromObject->output(name().toStdString());
-        auto& toPort = toObject->input(to->name().toStdString());
 
-        Clypsalot::linkPorts(fromPort, toPort);
+        THREAD_CALL
+        ({
+             std::scoped_lock fromLock(*fromObject);
+             std::scoped_lock toLock(*toObject);
+             auto& fromPort = fromObject->output(name().toStdString());
+             auto& toPort = toObject->input(to->name().toStdString());
+
+             Clypsalot::linkPorts(fromPort, toPort);
+         });
     }
     catch (const Clypsalot::Error& e)
     {
@@ -148,7 +155,7 @@ PortConnection::PortConnection(ObjectOutput* const from, ObjectInput* const to, 
     to(to),
     line(QLineF(), this)
 {
-    updatePosition(),
+    updatePosition();
     MainWindow::instance()->workArea()->scene->addItem(this);
 }
 
@@ -203,21 +210,19 @@ Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
 
     mainLayout->addItem(outputsLayout);
 
-    connect(this, SIGNAL(stateChanged(Clypsalot::ObjectState)), this, SLOT(updateState(const Clypsalot::ObjectState)));
-    connect(this, SIGNAL(propertyValues(const QList<std::pair<QString, QString>>&)), this, SLOT(updateProperties(const QList<std::pair<QString, QString>>&)));
+    connect(this, SIGNAL(checkObject()), this, SLOT(updateObject()), Qt::QueuedConnection);
     connect(this, SIGNAL(selectedChanged(bool)), this, SLOT(updateSelected(bool)));
 
     initObject(inputsLayout, outputsLayout, propertiesLayout);
+    updateObject();
 }
 
 void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayout* outputsLayout, QGraphicsGridLayout* propertiesLayout)
 {
     std::scoped_lock lock(*object);
 
-    info->kind->setText(QString::fromStdString(object->kind));
-
     subscriptions.push_back(object->subscribe<Clypsalot::ObjectStateChangedEvent>(std::bind(&Object::handleEvent, this, _1)));
-    updateState(object->state());
+    info->kind->setText(QString::fromStdString(object->kind));
 
     for (auto port : object->inputs())
     {
@@ -239,39 +244,25 @@ void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayo
 
     for (const auto& [name, property] : object->properties())
     {
-        QString value;
-
-        if (property.defined()) value = QString::fromStdString(property.valueToString());
-
         auto qName = QString::fromStdString(name);
         auto nameLabel = new WorkAreaLabelWidget(qName);
-        auto valueLabel = new WorkAreaLabelWidget(value);
+        auto valueLabel = new WorkAreaLabelWidget();
         propertiesLayout->addItem(nameLabel, rowNum, 0);
         propertiesLayout->addItem(valueLabel, rowNum, 1);
         m_propertyValues[qName] = valueLabel;
+
         rowNum++;
     }
 }
 
 // This is called from inside the Clypsalot thread queue not the UI thread.
-void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent& event)
+void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent&)
 {
-    Q_EMIT stateChanged(event.newState);
-
-    QList<std::pair<QString, QString>> values;
-    const auto& properties = object->properties();
-
-    values.reserve(properties.size());
-
-    for (const auto& [name, property] : properties)
+    if (checkObjectSignalNeeded)
     {
-        QString value;
-
-        if (property.defined()) value = QString::fromStdString(property.valueToString());
-        values.append({QString::fromStdString(name), value});
+        checkObjectSignalNeeded = false;
+        Q_EMIT checkObject();
     }
-
-    Q_EMIT propertyValues(values);
 }
 
 QVariant Object::itemChange(const GraphicsItemChange change, const QVariant& value)
@@ -283,6 +274,7 @@ QVariant Object::itemChange(const GraphicsItemChange change, const QVariant& val
 
         if (! rectangle.contains(position))
         {
+            // Keep all sides of the widget in the bounds of the scene
             position.setX(qMin(rectangle.right(), qMax(position.x(), rectangle.left())));
             position.setY(qMin(rectangle.bottom(), qMax(position.y(), rectangle.top())));
             return position;
@@ -296,17 +288,35 @@ QVariant Object::itemChange(const GraphicsItemChange change, const QVariant& val
     return WorkAreaWidget::itemChange(change, value);
 }
 
-void Object::updateState(const Clypsalot::ObjectState state)
+void Object::updateObject()
 {
-    info->state->setText(QString::fromStdString(Clypsalot::toString(state)));
-}
+    checkObjectSignalNeeded = true;
 
-void Object::updateProperties(const QList<std::pair<QString, QString>>& values)
-{
-    for (const auto& [name, value] : values)
+    auto update = THREAD_CALL
+    ({
+        auto update = std::make_unique<ObjectUpdate>();
+        std::lock_guard lock(*object);
+        const auto& properties = object->properties();
+        auto& propertyValues = update->propertyValues;
+
+        update->state = object->state();
+        propertyValues.reserve(properties.size());
+
+        for (const auto& [name, property] : properties)
+        {
+            if (property.defined()) propertyValues.emplace_back(name, property.valueToString());
+        }
+
+        return update;
+    });
+
+    info->state->setText(QString::fromStdString(Clypsalot::toString(update->state)));
+
+    for (const auto& [name, value] : update->propertyValues)
     {
-        if (! m_propertyValues.contains(name)) continue;
-        m_propertyValues[name]->setText(value);
+        auto qName = QString::fromStdString(name);
+        if (! m_propertyValues.contains(qName)) continue;
+        m_propertyValues[qName]->setText(QString::fromStdString(value));
     }
 }
 
@@ -322,18 +332,27 @@ void Object::updatePortConnectionPositions()
 
 void Object::start()
 {
-    std::scoped_lock lock(*object);
-    Clypsalot::startObject(object);
+    THREAD_CALL
+    ({
+         std::scoped_lock lock(*object);
+         Clypsalot::startObject(object);
+    });
 }
 
 void Object::pause()
 {
-    std::scoped_lock lock(*object);
-    Clypsalot::pauseObject(object);
+    THREAD_CALL
+    ({
+        std::scoped_lock lock(*object);
+        Clypsalot::pauseObject(object);
+    });
 }
 
 void Object::stop()
 {
-    std::scoped_lock lock(*object);
-    Clypsalot::stopObject(object);
+    THREAD_CALL
+    ({
+        std::scoped_lock lock(*object);
+        Clypsalot::stopObject(object);
+    });
 }

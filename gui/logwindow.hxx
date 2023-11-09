@@ -38,7 +38,7 @@ class LogWindowDestination : public QObject, public Clypsalot::LogDestination
 
     public:
     LogWindowDestination(const Clypsalot::LogSeverity severity);
-    void getEvents(std::list<Clypsalot::LogEvent>& destination);
+    std::list<Clypsalot::LogEvent> getEvents();
 };
 
 class LogWindow : public QFrame

@@ -25,6 +25,7 @@
 #include <clypsalot/module.hxx>
 #include <clypsalot/util.hxx>
 
+#include "logger.hxx"
 #include "logwindow.hxx"
 #include "mainwindow.hxx"
 #include "util.hxx"
