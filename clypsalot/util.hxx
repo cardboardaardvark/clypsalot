@@ -32,7 +32,7 @@ namespace Clypsalot
     {
         using Function = std::function<void ()>;
 
-        const Function finally;
+        const Function m_finally;
 
         public:
         Finally(const Function& finally);

@@ -41,7 +41,7 @@ namespace Clypsalot
 
     void TestObject::publicAddProperties(const PropertyList& list)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         addProperties(list);
     }
@@ -64,11 +64,11 @@ namespace Clypsalot
 
         addProperties(processingProperties);
 
-        userOutputPortTypes[PTestPortType::typeName] = true;
-        userInputPortTypes[PTestPortType::typeName] = true;
+        m_userOutputPortTypes[PTestPortType::typeName] = true;
+        m_userInputPortTypes[PTestPortType::typeName] = true;
 
-        processCounterProperty = &propertySizeRef(processCounterPropertyName);
-        maxProcessProperty = &propertySizeRef(maxProcessPropertyName);
+        m_processCounterProperty = &propertySizeRef(processCounterPropertyName);
+        m_maxProcessProperty = &propertySizeRef(maxProcessPropertyName);
     }
 
     ObjectProcessResult ProcessingTestObject::process()
@@ -83,17 +83,17 @@ namespace Clypsalot
             return ObjectProcessResult::endOfData;
         }
 
-        (*processCounterProperty)++;
+        (*m_processCounterProperty)++;
 
-        OBJECT_LOGGER(trace, "Process counter: ", *processCounterProperty);
+        OBJECT_LOGGER(trace, "Process counter: ", *m_processCounterProperty);
 
-        if (*maxProcessProperty && *processCounterProperty >= *maxProcessProperty)
+        if (*m_maxProcessProperty && *m_processCounterProperty >= *m_maxProcessProperty)
         {
-            OBJECT_LOGGER(trace, "Reached max process value: ", *maxProcessProperty);
+            OBJECT_LOGGER(trace, "Reached max process value: ", *m_maxProcessProperty);
             done = true;
         }
 
-        for (const auto port : inputPorts)
+        for (const auto port : m_inputPorts)
         {
             for (auto baseLink : port->links())
             {
@@ -104,7 +104,7 @@ namespace Clypsalot
             }
         }
 
-        for(const auto port : outputPorts)
+        for(const auto port : m_outputPorts)
         {
             for (auto baseLink : port->links())
             {

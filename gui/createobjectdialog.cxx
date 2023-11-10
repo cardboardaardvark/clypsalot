@@ -31,25 +31,25 @@ static const int portTableNameIndex = 1;
 PortEditor::PortEditor(QWidget* parent) :
     QWidget(parent)
 {
-    mainLayout = new QVBoxLayout(this);
-    topLayout = new QHBoxLayout();
-    mainLayout->addLayout(topLayout);
+    m_mainLayout = new QVBoxLayout(this);
+    m_topLayout = new QHBoxLayout();
+    m_mainLayout->addLayout(m_topLayout);
 
-    portNameInput = makePortNameInput();
-    portTypeInput = makePortTypeInput();
-    addPortButton = makePortButton("Add", false);
-    removePortButton = makePortButton("Remove", true);
-    topLayout->addWidget(portTypeInput);
-    topLayout->addWidget(portNameInput);
-    topLayout->addWidget(addPortButton);
-    topLayout->addWidget(removePortButton);
+    m_portNameInput = makePortNameInput();
+    m_portTypeInput = makePortTypeInput();
+    m_addPortButton = makePortButton("Add", false);
+    m_removePortButton = makePortButton("Remove", true);
+    m_topLayout->addWidget(m_portTypeInput);
+    m_topLayout->addWidget(m_portNameInput);
+    m_topLayout->addWidget(m_addPortButton);
+    m_topLayout->addWidget(m_removePortButton);
 
-    portTable = makePortTable();
-    mainLayout->addWidget(portTable);
+    m_portTable = makePortTable();
+    m_mainLayout->addWidget(m_portTable);
 
-    connect(portNameInput, SIGNAL(textChanged(const QString&)), this, SLOT(portNameInputChanged(const QString&)));
-    connect(addPortButton, SIGNAL(clicked()), this, SLOT(addPortClicked()));
-    connect(removePortButton, SIGNAL(clicked()), this, SLOT(removePortClicked()));
+    connect(m_portNameInput, SIGNAL(textChanged(const QString&)), this, SLOT(portNameInputChanged(const QString&)));
+    connect(m_addPortButton, SIGNAL(clicked()), this, SLOT(addPortClicked()));
+    connect(m_removePortButton, SIGNAL(clicked()), this, SLOT(removePortClicked()));
 }
 
 QComboBox* PortEditor::makePortTypeInput()
@@ -61,20 +61,20 @@ QComboBox* PortEditor::makePortTypeInput()
 
 void PortEditor::addType(const QString& name)
 {
-    portTypeInput->addItem(name);
+    m_portTypeInput->addItem(name);
 }
 
 std::vector<std::pair<QString, QString>> PortEditor::ports()
 {
     std::vector<std::pair<QString, QString>> vector;
-    auto numRows = portTable->rowCount();
+    auto numRows = m_portTable->rowCount();
 
     vector.reserve(numRows);
 
     for (int row = 0; row < numRows; row++)
     {
-        auto type = portTable->item(row, portTableTypeIndex)->text();
-        auto name = portTable->item(row, portTableNameIndex)->text();
+        auto type = m_portTable->item(row, portTableTypeIndex)->text();
+        auto name = m_portTable->item(row, portTableNameIndex)->text();
         vector.emplace_back(type, name);
     }
 
@@ -103,7 +103,7 @@ void PortEditor::portNameInputChanged(const QString& currentText)
     if (tableHasName(text)) addPortButtonEnabled = false;
     else if (currentText == "") addPortButtonEnabled = false;
 
-    addPortButton->setEnabled(addPortButtonEnabled);
+    m_addPortButton->setEnabled(addPortButtonEnabled);
 }
 
 QTableWidget* PortEditor::makePortTable()
@@ -121,11 +121,11 @@ QTableWidget* PortEditor::makePortTable()
 
 bool PortEditor::tableHasName(const QString& name)
 {
-    auto numRows = portTable->rowCount();
+    auto numRows = m_portTable->rowCount();
 
     for(int row = 0; row < numRows; row++)
     {
-        if (portTable->item(row, portTableNameIndex)->text() == name) return true;
+        if (m_portTable->item(row, portTableNameIndex)->text() == name) return true;
     }
 
     return false;
@@ -133,43 +133,43 @@ bool PortEditor::tableHasName(const QString& name)
 
 void PortEditor::addPortClicked()
 {
-    addPort(portNameInput->text().trimmed(), portTypeInput->currentText());
-    portNameInput->clear();
+    addPort(m_portNameInput->text().trimmed(), m_portTypeInput->currentText());
+    m_portNameInput->clear();
 }
 
 void PortEditor::addPort(const QString& name, const QString& type)
 {
-    auto row = portTable->rowCount();
+    auto row = m_portTable->rowCount();
 
-    portTable->insertRow(row);
-    portTable->setItem(row, portTableTypeIndex, new QTableWidgetItem(type));
-    portTable->setItem(row, portTableNameIndex, new QTableWidgetItem(name));
+    m_portTable->insertRow(row);
+    m_portTable->setItem(row, portTableTypeIndex, new QTableWidgetItem(type));
+    m_portTable->setItem(row, portTableNameIndex, new QTableWidgetItem(name));
 }
 
 void PortEditor::removePortClicked()
 {
-    auto selectedRow = portTable->currentRow();
+    auto selectedRow = m_portTable->currentRow();
 
     if (selectedRow == -1) return;
 
-    portTable->removeRow(selectedRow);
+    m_portTable->removeRow(selectedRow);
 }
 
 CreateObjectDialog::CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor) :
     QDialog(parent),
-    ui(new Ui::CreateObjectDialog),
-    descriptor(descriptor),
-    object(descriptor.make())
+    m_ui(new Ui::CreateObjectDialog),
+    m_descriptor(descriptor),
+    m_object(descriptor.make())
 {
     LOGGER(trace, "init CreateObjectDialog for ", descriptor.kind);
 
     setWindowModality(Qt::WindowModal);
 
-    ui->setupUi(this);
-    ui->objectKindLabel->setText(QString::fromStdString(descriptor.kind));
-    ui->createButton->setEnabled(false);
+    m_ui->setupUi(this);
+    m_ui->objectKindLabel->setText(QString::fromStdString(descriptor.kind));
+    m_ui->createButton->setEnabled(false);
 
-    connect(ui->objectProperties, &ObjectPropertiesEditor::ready, this, &CreateObjectDialog::editorReady);
+    connect(m_ui->objectProperties, &ObjectPropertiesEditor::ready, this, &CreateObjectDialog::editorReady);
     initObject();
     initTabs();
 
@@ -181,17 +181,17 @@ CreateObjectDialog::CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectD
         QMetaObject::invokeMethod(this, "accept", Qt::QueuedConnection);
     }
 
-    ui->objectProperties->checkReady();
+    m_ui->objectProperties->checkReady();
 }
 
 CreateObjectDialog::~CreateObjectDialog()
 {
-    delete ui;
+    delete m_ui;
 }
 
 bool CreateObjectDialog::dialogNeeded()
 {
-    auto tabs = ui->tabs;
+    auto tabs = m_ui->tabs;
     auto numTabs = tabs->count();
 
     for (int tab = 0; tab < numTabs; tab++)
@@ -204,66 +204,66 @@ bool CreateObjectDialog::dialogNeeded()
 
 void CreateObjectDialog::initObject()
 {
-    auto editor = ui->objectProperties;
-    std::scoped_lock objectLock(*object);
+    auto editor = m_ui->objectProperties;
+    std::scoped_lock objectLock(*m_object);
 
-    outputTypes = object->addOutputTypes();
-    inputTypes = object->addInputTypes();
+    m_outputTypes = m_object->addOutputTypes();
+    m_inputTypes = m_object->addInputTypes();
 
-    for (const auto& [name, property] : object->properties())
+    for (const auto& [name, property] : m_object->properties())
     {
-        if (! property.configurable) continue;
+        if (! property.m_configurable) continue;
 
         LOGGER(trace, "Adding property for editing: ", name);
-        editor->addProperty(QString::fromStdString(name), property.type, property.required, property.anyValue());
+        editor->addProperty(QString::fromStdString(name), property.m_type, property.m_required, property.anyValue());
     }
 }
 
 void CreateObjectDialog::initTabs()
 {
-    if (ui->objectProperties->numFields() == 0) ui->tabs->setTabEnabled(propertiesTabIndex, false);
+    if (m_ui->objectProperties->numFields() == 0) m_ui->tabs->setTabEnabled(propertiesTabIndex, false);
 
-    if (outputTypes.size() == 0)
+    if (m_outputTypes.size() == 0)
     {
-        ui->tabs->setTabEnabled(outputsTabIndex, false);
+        m_ui->tabs->setTabEnabled(outputsTabIndex, false);
     }
     else
     {
-        for (const auto& type : outputTypes)
+        for (const auto& type : m_outputTypes)
         {
-            ui->outputs->addType(QString::fromStdString(type));
+            m_ui->outputs->addType(QString::fromStdString(type));
         }
     }
 
-    if (inputTypes.size() == 0)
+    if (m_inputTypes.size() == 0)
     {
-        ui->tabs->setTabEnabled(inputsTabIndex, false);
+        m_ui->tabs->setTabEnabled(inputsTabIndex, false);
     }
     else
     {
-        for (const auto& type : outputTypes)
+        for (const auto& type : m_outputTypes)
         {
-            ui->inputs->addType(QString::fromStdString(type));
+            m_ui->inputs->addType(QString::fromStdString(type));
         }
     }
 }
 
 void CreateObjectDialog::editorReady(const bool ready)
 {
-    ui->createButton->setEnabled(ready);
+    m_ui->createButton->setEnabled(ready);
 }
 
 Clypsalot::ObjectConfig CreateObjectDialog::config()
 {
-    return ui->objectProperties->config();
+    return m_ui->objectProperties->config();
 }
 
 std::vector<std::pair<QString, QString>> CreateObjectDialog::outputs()
 {
-    return ui->outputs->ports();
+    return m_ui->outputs->ports();
 }
 
 std::vector<std::pair<QString, QString>> CreateObjectDialog::inputs()
 {
-    return ui->inputs->ports();
+    return m_ui->inputs->ports();
 }

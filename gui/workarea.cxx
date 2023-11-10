@@ -71,21 +71,21 @@ QVariant WorkAreaWidget::itemChange(GraphicsItemChange change, const QVariant &v
 
 WorkAreaLabelWidget::WorkAreaLabelWidget(const QString& text, QGraphicsItem* parent) :
     WorkAreaWidget(parent),
-    textItem(this)
+    m_textItem(this)
 {
     if (text != "") setText(text);
 }
 
 QString WorkAreaLabelWidget::text()
 {
-    return textItem.text();
+    return m_textItem.text();
 }
 
 void WorkAreaLabelWidget::setText(const QString& text)
 {
-    textItem.setText(text);
+    m_textItem.setText(text);
 
-    auto textSize = textItem.boundingRect().size();
+    auto textSize = m_textItem.boundingRect().size();
     setMinimumSize(textSize);
     setMaximumSize(textSize);
 }
@@ -123,20 +123,20 @@ void WorkAreaScene::catalogDropEvent(QGraphicsSceneDragDropEvent* event)
 {
     auto mime = qobject_cast<const CatalogMimeData*>(event->mimeData());
 
-    if (mime->entry->type() == catalogObjectItemType)
+    if (mime->m_entry->type() == catalogObjectItemType)
     {
         event->setAccepted(true);
-        catalogObjectDrop(dynamic_cast<const CatalogObjectItem*>(mime->entry), event->scenePos());
+        catalogObjectDrop(dynamic_cast<const CatalogObjectItem*>(mime->m_entry), event->scenePos());
     }
 }
 
 void WorkAreaScene::catalogObjectDrop(const CatalogObjectItem* const item, const QPointF& position)
 {
-    CreateObjectDialog dialog(MainWindow::instance(), item->descriptor);
+    CreateObjectDialog dialog(MainWindow::instance(), item->m_descriptor);
 
     if (! dialog.exec()) return;
 
-    auto& descriptor = item->descriptor;
+    auto& descriptor = item->m_descriptor;
     auto outputs = dialog.outputs();
     auto inputs = dialog.inputs();
     auto config = dialog.config();
@@ -169,16 +169,16 @@ void WorkAreaConnectionLine::setInvalid(const bool invalid)
 
 WorkArea::WorkArea(QWidget *parent) :
     QGraphicsView(parent),
-    scene(new WorkAreaScene(this))
+    m_scene(new WorkAreaScene(this))
 {
-    setScene(scene);
+    setScene(m_scene);
 }
 
 QList<Object*> WorkArea::objects()
 {
     QList<Object*> retval;
 
-    for(auto item : scene->items())
+    for(auto item : m_scene->items())
     {
         auto object = dynamic_cast<Object*>(item);
         if (object == nullptr) continue;
@@ -192,31 +192,31 @@ void WorkArea::startConnectionDrag()
 {
     LOGGER(trace, "Starting connection drag");
 
-    assert(connectionDragLine == nullptr);
+    assert(m_connectionDragLine == nullptr);
 
-    connectionDragLine = new WorkAreaConnectionLine();
-    scene->addItem(connectionDragLine);
+    m_connectionDragLine = new WorkAreaConnectionLine();
+    m_scene->addItem(m_connectionDragLine);
 }
 
 void WorkArea::updateConnectionDrag(const QPointF& start, const QPointF& end, const bool invalid)
 {
     LOGGER(trace, "Updating connection drag");
 
-    assert(connectionDragLine != nullptr);
+    assert(m_connectionDragLine != nullptr);
 
-    connectionDragLine->setLine({start, end});
-    connectionDragLine->setInvalid(invalid);
+    m_connectionDragLine->setLine({start, end});
+    m_connectionDragLine->setInvalid(invalid);
 }
 
 void WorkArea::resetConnectionDrag()
 {
     LOGGER(trace, "Reseting connection drag");
 
-    assert(connectionDragLine != nullptr);
+    assert(m_connectionDragLine != nullptr);
 
-    scene->removeItem(connectionDragLine);
-    delete connectionDragLine;
-    connectionDragLine = nullptr;
+    m_scene->removeItem(m_connectionDragLine);
+    delete m_connectionDragLine;
+    m_connectionDragLine = nullptr;
 }
 
 void WorkArea::startObjects()

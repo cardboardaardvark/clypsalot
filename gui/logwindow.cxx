@@ -30,26 +30,26 @@ LogWindowDestination::LogWindowDestination(const Clypsalot::LogSeverity severity
 // This method could be called by any thread
 void LogWindowDestination::handleLogEvent(const Clypsalot::LogEvent& event) noexcept
 {
-    assert(mutex.haveSharedLock());
+    assert(m_mutex.haveSharedLock());
 
-    std::scoped_lock lock(queueMutex);
+    std::scoped_lock lock(m_queueMutex);
 
-    eventQueue.push_back(event);
+    m_eventQueue.push_back(event);
 
-    if (needToSignal)
+    if (m_needToSignal)
     {
         Q_EMIT checkMessages();
-        needToSignal = false;
+        m_needToSignal = false;
     }
 }
 
 std::list<Clypsalot::LogEvent> LogWindowDestination::getEvents()
 {
     std::list<Clypsalot::LogEvent> retval;
-    std::scoped_lock lock(queueMutex);
+    std::scoped_lock lock(m_queueMutex);
 
-    retval = std::move(eventQueue);
-    needToSignal = true;
+    retval = std::move(m_eventQueue);
+    m_needToSignal = true;
 
     return retval;
 }
@@ -62,39 +62,39 @@ LogWindow* LogWindow::instance()
 
 LogWindow::LogWindow(QWidget *parent) :
     QFrame(parent),
-    ui(new Ui::LogWindow),
-    destination(Clypsalot::logEngine().makeDestination<LogWindowDestination>(DEFAULT_LOG_SEVERITY))
+    m_ui(new Ui::LogWindow),
+    m_destination(Clypsalot::logEngine().makeDestination<LogWindowDestination>(DEFAULT_LOG_SEVERITY))
 {
-    ui->setupUi(this);
+    m_ui->setupUi(this);
 
     updateMaxMessages();
     initLogSeverities();
-    connect(&destination, SIGNAL(checkMessages()), this, SLOT(updateMessages()), Qt::QueuedConnection);
+    connect(&m_destination, SIGNAL(checkMessages()), this, SLOT(updateMessages()), Qt::QueuedConnection);
 }
 
 LogWindow::~LogWindow()
 {
-    delete ui;
+    delete m_ui;
 }
 
 void LogWindow::initLogSeverities()
 {
-    auto picker = ui->logSeverityPicker;
+    auto picker = m_ui->logSeverityPicker;
 
     for (const auto& severityName : Clypsalot::logSeverityNames)
     {
         picker->addItem(QString::fromStdString(severityName));
     }
 
-    picker->setCurrentText(QString::fromStdString(Clypsalot::toString(destination.severity())));
+    picker->setCurrentText(QString::fromStdString(Clypsalot::toString(m_destination.severity())));
 }
 
 void LogWindow::setSeverity(const QString& severityName)
 {
     try
     {
-        destination.severity(Clypsalot::logSeverity(severityName.toStdString()));
-        ui->logSeverityPicker->setCurrentText(severityName);
+        m_destination.severity(Clypsalot::logSeverity(severityName.toStdString()));
+        m_ui->logSeverityPicker->setCurrentText(severityName);
     }
     catch (const std::exception& e)
     {
@@ -108,9 +108,9 @@ void LogWindow::setSeverity(const QString& severityName)
 
 void LogWindow::updateMessages()
 {
-    auto events = destination.getEvents();
+    auto events = m_destination.getEvents();
     auto size = events.size();
-    auto maxMessages = ui->maxMessages->sizeValue();
+    auto maxMessages = m_ui->maxMessages->sizeValue();
     size_t startAt = 0;
     size_t i = 0;
 
@@ -118,24 +118,24 @@ void LogWindow::updateMessages()
 
     for (const auto& event : events)
     {
-        if (i >= startAt) ui->logMessages->appendPlainText(makeQString(event));
+        if (i >= startAt) m_ui->logMessages->appendPlainText(makeQString(event));
         i++;
     }
 }
 
 void LogWindow::jumpFirstMessage()
 {
-    auto scrollBar = ui->logMessages->verticalScrollBar();
+    auto scrollBar = m_ui->logMessages->verticalScrollBar();
     scrollBar->setSliderPosition(scrollBar->minimum());
 }
 
 void LogWindow::jumpLastMessage()
 {
-    auto scrollBar = ui->logMessages->verticalScrollBar();
+    auto scrollBar = m_ui->logMessages->verticalScrollBar();
     scrollBar->setSliderPosition(scrollBar->maximum());
 }
 
 void LogWindow::updateMaxMessages()
 {
-    ui->logMessages->setMaximumBlockCount(ui->maxMessages->sizeValue());
+    m_ui->logMessages->setMaximumBlockCount(m_ui->maxMessages->sizeValue());
 }

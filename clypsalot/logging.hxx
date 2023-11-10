@@ -87,7 +87,7 @@ namespace Clypsalot {
     {
         friend LogEngine;
 
-        LogSeverity minSeverity;
+        LogSeverity m_minSeverity;
 
         protected:
         LogDestination(const LogSeverity severity);
@@ -110,8 +110,8 @@ namespace Clypsalot {
     /// is a singleton instance of this object that is accessed via the logEngine() function.
     class LogEngine : private SharedLockable
     {
-        const LogEvent::Timestamp programStart = LogEvent::Clock::now();
-        std::vector<LogDestination*> destinations;
+        const LogEvent::Timestamp m_programStart = LogEvent::Clock::now();
+        std::vector<LogDestination*> m_destinations;
 
         public:
         LogEngine() = default;
@@ -129,8 +129,8 @@ namespace Clypsalot {
         T& makeDestination(Args&&... args) noexcept
         {
             auto destination = new T(args...);
-            std::scoped_lock lock(mutex);
-            destinations.push_back(destination);
+            std::scoped_lock lock(m_mutex);
+            m_destinations.push_back(destination);
             return *destination;
         }
     };

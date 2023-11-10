@@ -16,6 +16,7 @@
 
 #include <clypsalot/error.hxx>
 #include <clypsalot/logging.hxx>
+#include <clypsalot/macros.hxx>
 #include <clypsalot/util.hxx>
 
 /// @cond NO_DOCUMENT
@@ -55,30 +56,30 @@ namespace Clypsalot {
 
     /// @brief Construct a new log destination setting the initial severity.
     LogDestination::LogDestination(const LogSeverity severity) :
-        minSeverity(severity)
+        m_minSeverity(severity)
     { }
 
     /// @brief Get the current minimum severity of the log destination.
     LogSeverity LogDestination::severity() noexcept
     {
-        std::shared_lock lock(mutex);
-        return minSeverity;
+        std::shared_lock lock(m_mutex);
+        return m_minSeverity;
     }
 
     /// @brief Set a new minimum severity on the log destination.
     void LogDestination::severity(const LogSeverity severity) noexcept
     {
-        std::scoped_lock lock(mutex);
-        minSeverity = severity;
+        std::scoped_lock lock(m_mutex);
+        m_minSeverity = severity;
     }
 
     /// @brief Returns true if the given severity is at least as severe as any of the
     /// registered log destinations. Returns false otherwise.
     bool LogEngine::shouldLog(const LogSeverity severity) noexcept
     {
-        std::shared_lock lock(mutex);
+        std::shared_lock lock(m_mutex);
 
-        for (const auto destination : destinations)
+        for (const auto destination : m_destinations)
         {
             if (severity >= destination->severity())
             {
@@ -93,13 +94,13 @@ namespace Clypsalot {
     /// with a current minimum severity at least as great as the severity of the log event.
     void LogEngine::deliver(const LogEvent& event) noexcept
     {
-        std::shared_lock engineLock(mutex);
+        std::shared_lock engineLock(m_mutex);
 
-        for (auto destination : destinations)
+        for (auto destination : m_destinations)
         {
-            std::shared_lock destinationLock(destination->mutex);
+            std::shared_lock destinationLock(destination->m_mutex);
 
-            if (event.severity >= destination->minSeverity)
+            if (event.severity >= destination->m_minSeverity)
             {
                 destination->handleLogEvent(event);
             }
@@ -110,7 +111,7 @@ namespace Clypsalot {
     /// to the timestamp given.
     std::chrono::microseconds LogEngine::runDuration(const LogEvent::Timestamp& when) noexcept
     {
-        return std::chrono::duration_cast<std::chrono::microseconds>(when - programStart);
+        return std::chrono::duration_cast<std::chrono::microseconds>(when - m_programStart);
     }
 
     /// @brief A LogDestination that sends log messages to stderr.
@@ -121,7 +122,7 @@ namespace Clypsalot {
     /// @cond NO_DOCUMENT
     void ConsoleDestination::handleLogEvent(const LogEvent& event) noexcept
     {
-        assert(mutex.haveSharedLock());
+        assert(m_mutex.haveSharedLock());
 
         // The new line is included instead of using std::endl so writing the entire line
         // is an atomic operation otherwise if two threads are writing to the console at
@@ -230,6 +231,8 @@ namespace Clypsalot {
             case LogSeverity::verbose: return "verbose";
             case LogSeverity::warn: return "warn";
         }
+
+        FATAL_ERROR(makeString("Unhandled LogSeverity value: ", severity));
     }
 
     /// @cond NO_DOCUMENT

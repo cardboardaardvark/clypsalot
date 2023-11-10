@@ -43,7 +43,7 @@ namespace Clypsalot
     struct ObjectStateChangedEvent;
     class OutputPort;
     class PortLink;
-    struct PortType;
+    class PortType;
     struct PortTypeDescriptor;
     class Property;
     struct PropertyConfig;

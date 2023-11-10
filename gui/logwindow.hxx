@@ -27,9 +27,9 @@ class LogWindowDestination : public QObject, public Clypsalot::LogDestination
     Q_OBJECT
 
     protected:
-    bool needToSignal = true;
-    Clypsalot::Mutex queueMutex;
-    std::list<Clypsalot::LogEvent> eventQueue;
+    bool m_needToSignal = true;
+    Clypsalot::Mutex m_queueMutex;
+    std::list<Clypsalot::LogEvent> m_eventQueue;
 
     void handleLogEvent(const Clypsalot::LogEvent& event) noexcept override;
 
@@ -45,8 +45,8 @@ class LogWindow : public QFrame
 {
     Q_OBJECT
 
-    Ui::LogWindow *ui = nullptr;
-    LogWindowDestination& destination;
+    Ui::LogWindow *m_ui = nullptr;
+    LogWindowDestination& m_destination;
 
     void initLogSeverities();
 

@@ -27,10 +27,10 @@ TEST_MAIN_FUNCTION
 
 struct TestMessage : public Message
 {
-    const std::string string;
+    const std::string m_string;
 
     TestMessage(const std::string& string) :
-        string(string)
+        m_string(string)
     { }
 };
 
@@ -44,9 +44,9 @@ TEST_CASE(Message_deliver)
 
     messages.registerHandler<TestMessage>([&condVar, &mutex, &didRun] (const TestMessage& message)
     {
-        BOOST_CHECK(message.string == TEST_STRING_VALUE);
+        BOOST_CHECK(message.m_string == TEST_STRING_VALUE);
 
-        std::unique_lock lock(mutex);
+        std::unique_lock handlerLock(mutex);
         didRun = true;
         condVar.notify_all();
     });

@@ -13,6 +13,7 @@
 #include <cassert>
 
 #include <clypsalot/error.hxx>
+#include <clypsalot/macros.hxx>
 #include <clypsalot/property.hxx>
 #include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
@@ -28,21 +29,21 @@ namespace Clypsalot
             const bool publicMutable,
             const std::any& initial
         ) :
-            parent(parent),
-            name(name),
-            type(type),
-            configurable(configurable),
-            required(required),
-            publicMutable(publicMutable)
+            m_parent(parent),
+            m_name(name),
+            m_type(type),
+            m_configurable(configurable),
+            m_required(required),
+            m_publicMutable(publicMutable)
     {
         switch (type)
         {
-            case PropertyType::boolean: container.boolean = false; break;
-            case PropertyType::file: container.file = new std::filesystem::path; break;
-            case PropertyType::integer: container.integer = 0; break;
-            case PropertyType::real: container.real = 0.; break;
-            case PropertyType::size: container.size = 0; break;
-            case PropertyType::string: container.string = new std::string; break;
+            case PropertyType::boolean: m_container.boolean = false; break;
+            case PropertyType::file: m_container.file = new std::filesystem::path; break;
+            case PropertyType::integer: m_container.integer = 0; break;
+            case PropertyType::real: m_container.real = 0.; break;
+            case PropertyType::size: m_container.size = 0; break;
+            case PropertyType::string: m_container.string = new std::string; break;
         }
 
         if (initial.type() != typeid(nullptr))
@@ -53,69 +54,69 @@ namespace Clypsalot
 
     Property::~Property()
     {
-        if (type == PropertyType::string)
+        if (m_type == PropertyType::string)
         {
-            delete container.string;
+            delete m_container.string;
         }
-        else if (type == PropertyType::file)
+        else if (m_type == PropertyType::file)
         {
-            delete container.file;
+            delete m_container.file;
         }
     }
 
     bool Property::defined(const bool defined)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
-        hasValue = defined;
+        m_hasValue = defined;
 
-        return hasValue;
+        return m_hasValue;
     }
 
     bool Property::defined() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
-        return hasValue;
+        return m_hasValue;
     }
 
     void Property::set(const std::any& value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
-        switch (type)
+        switch (m_type)
         {
-            case PropertyType::boolean: container.boolean = anyToBool(value); break;
-            case PropertyType::file: *container.file = anyToPath(value); break;
-            case PropertyType::integer: container.integer = anyToInt(value); break;
-            case PropertyType::real: container.real = anyToFloat(value); break;
-            case PropertyType::size: container.size = anyToSize(value); break;
-            case PropertyType::string: *container.string = anyToString(value); break;
+            case PropertyType::boolean: m_container.boolean = anyToBool(value); break;
+            case PropertyType::file: *m_container.file = anyToPath(value); break;
+            case PropertyType::integer: m_container.integer = anyToInt(value); break;
+            case PropertyType::real: m_container.real = anyToFloat(value); break;
+            case PropertyType::size: m_container.size = anyToSize(value); break;
+            case PropertyType::string: *m_container.string = anyToString(value); break;
         }
 
-        hasValue = true;
+        m_hasValue = true;
     }
 
     void Property::enforcePublicMutable() const
     {
-        if (! publicMutable) throw ImmutableError(makeString("Property ", name, " is not mutable"));
+        if (! m_publicMutable) throw ImmutableError(makeString("Property ", m_name, " is not mutable"));
     }
 
     void Property::enforceType(const PropertyType enforceType) const
     {
-        if (type != enforceType) throw TypeError(makeString("Property ", name, " is not of ", enforceType, " type"));
+        if (m_type != enforceType) throw TypeError(makeString("Property ", m_name, " is not of ", enforceType, " type"));
     }
 
     void Property::enforceDefined() const
     {
-        if (! hasValue) throw UndefinedError(makeString("Property ", name, " does not have a value"));
+        if (! m_hasValue) throw UndefinedError(makeString("Property ", m_name, " does not have a value"));
     }
 
     std::string Property::valueToString() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
-        switch (type)
+        switch (m_type)
         {
             case PropertyType::boolean: return makeString(booleanValue());
             case PropertyType::file: return fileValue();
@@ -124,187 +125,189 @@ namespace Clypsalot
             case PropertyType::size: return makeString(sizeValue());
             case PropertyType::string: return stringValue();
         }
+
+        FATAL_ERROR(makeString("Unhandled PropertyType value: ", m_type));
     }
 
     Property::BooleanType& Property::booleanRef()
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::boolean);
 
-        return container.boolean;
+        return m_container.boolean;
     }
 
     Property::BooleanType Property::booleanValue() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::boolean);
         enforceDefined();
 
-        return container.boolean;
+        return m_container.boolean;
     }
 
     void Property::booleanValue(const BooleanType value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
         booleanRef() = value;
-        hasValue = true;
+        m_hasValue = true;
     }
 
     Property::FileType& Property::fileRef()
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::file);
 
-        return *container.file;
+        return *m_container.file;
     }
 
     Property::FileType Property::fileValue() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::file);
         enforceDefined();
 
-        return *container.file;
+        return *m_container.file;
     }
 
     void Property::fileValue(const FileType& value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
         fileRef() = value;
-        hasValue = true;
+        m_hasValue = true;
     }
 
     Property::IntegerType& Property::integerRef()
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::integer);
 
-        return container.integer;
+        return m_container.integer;
     }
 
     Property::IntegerType Property::integerValue() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::integer);
         enforceDefined();
 
-        return container.integer;
+        return m_container.integer;
     }
 
     void Property::integerValue(const IntegerType value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
         integerRef() = value;
-        hasValue = true;
+        m_hasValue = true;
     }
 
     Property::RealType& Property::realRef()
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::real);
 
-        return container.real;
+        return m_container.real;
     }
 
     Property::RealType Property::realValue() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::real);
         enforceDefined();
 
-        return container.real;
+        return m_container.real;
     }
 
     void Property::realValue(const RealType value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
         realRef() = value;
-        hasValue = true;
+        m_hasValue = true;
     }
 
     Property::SizeType& Property::sizeRef()
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::size);
 
-        return container.size;
+        return m_container.size;
     }
 
     Property::SizeType Property::sizeValue() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::size);
         enforceDefined();
 
-        return container.size;
+        return m_container.size;
     }
 
     void Property::sizeValue(const SizeType value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
         sizeRef() = value;
-        hasValue = true;
+        m_hasValue = true;
     }
 
     Property::StringType& Property::stringRef()
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::string);
 
-        return *container.string;
+        return *m_container.string;
     }
 
     Property::StringType Property::stringValue() const
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforceType(PropertyType::string);
         enforceDefined();
 
-        return *container.string;
+        return *m_container.string;
     }
 
     void Property::stringValue(const StringType& value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
         stringRef() = value;
-        hasValue = true;
+        m_hasValue = true;
     }
 
     std::any Property::anyValue() const
     {
-        if (! hasValue) return std::any(nullptr);
+        if (! m_hasValue) return std::any(nullptr);
 
-        switch (type)
+        switch (m_type)
         {
             case PropertyType::boolean: return std::any(booleanValue());
             case PropertyType::file: return std::any(fileValue());
@@ -313,11 +316,13 @@ namespace Clypsalot
             case PropertyType::size: return std::any(sizeValue());
             case PropertyType::string: return std::any(stringValue());
         }
+
+        FATAL_ERROR(makeString("Unhandled PropertyType value: ", m_type));
     }
 
     void Property::anyValue(const std::any& value)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
@@ -335,6 +340,8 @@ namespace Clypsalot
             case PropertyType::size: return "size";
             case PropertyType::string: return "string";
         }
+
+        FATAL_ERROR(makeString("Unhandled PropertyType value: ", type));
     }
 
     std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept

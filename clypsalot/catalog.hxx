@@ -26,12 +26,12 @@ namespace Clypsalot
     {
         const PortTypeDescriptor& entry;
 
-        PortTypeCatalogEntryAddedEvent(const PortTypeDescriptor& newEntry);
+        PortTypeCatalogEntryAddedEvent(const PortTypeDescriptor& in_entry);
     };
 
     class PortTypeCatalog : public Lockable, public Eventful
     {
-        std::map<std::string, const PortTypeDescriptor*> catalogEntries;
+        std::map<std::string, const PortTypeDescriptor*> m_catalogEntries;
 
         public:
         PortTypeCatalog();
@@ -48,7 +48,7 @@ namespace Clypsalot
     {
         const ObjectDescriptor& entry;
 
-        ObjectCatalogEntryAddedEvent(const ObjectDescriptor& newEntry);
+        ObjectCatalogEntryAddedEvent(const ObjectDescriptor& in_entry);
     };
 
     class ObjectCatalog : public Lockable, public Eventful

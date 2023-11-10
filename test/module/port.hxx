@@ -28,7 +28,7 @@ namespace Clypsalot
 
     class MTestOutputPort : public OutputPort
     {
-        bool readyFlag = false;
+        bool m_readyFlag = false;
 
         public:
         MTestOutputPort(const std::string& name, Object& parent);
@@ -38,7 +38,7 @@ namespace Clypsalot
 
     class MTestInputPort : public InputPort
     {
-        bool readyFlag = false;
+        bool m_readyFlag = false;
 
         public:
         MTestInputPort(const std::string& name, Object& parent);
@@ -78,7 +78,7 @@ namespace Clypsalot
 
     class PTestPortLink : public PortLink
     {
-        bool dirtyFlag = false;
+        bool m_dirtyFlag = false;
 
         public:
         PTestPortLink(PTestOutputPort& from, PTestInputPort& to);

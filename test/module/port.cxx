@@ -32,8 +32,8 @@ namespace Clypsalot
     PortLink* MTestPortType::makeLink(OutputPort& from, InputPort& to) const
     {
         const auto& ourTypeInfo = typeid(MTestPortType);
-        const auto& fromType = from.type;
-        const auto& toType = to.type;
+        const auto& fromType = from.type();
+        const auto& toType = to.type();
 
         if (typeid(fromType) != ourTypeInfo || typeid(toType) != ourTypeInfo)
         {
@@ -52,15 +52,15 @@ namespace Clypsalot
 
     bool MTestOutputPort::ready() const noexcept
     {
-        assert(parent.haveLock());
-        return readyFlag;
+        assert(m_parent.haveLock());
+        return m_readyFlag;
     }
 
     void MTestOutputPort::setReady(const bool ready) noexcept
     {
-        assert(parent.haveLock());
-        readyFlag = ready;
-        PORT_LOGGER(trace, "ready=", readyFlag);
+        assert(m_parent.haveLock());
+        m_readyFlag = ready;
+        PORT_LOGGER(trace, "ready=", m_readyFlag);
     }
 
     MTestInputPort::MTestInputPort(const std::string& name, Object& parent) :
@@ -69,15 +69,15 @@ namespace Clypsalot
 
     bool MTestInputPort::ready() const noexcept
     {
-        assert(parent.haveLock());
-        return readyFlag;
+        assert(m_parent.haveLock());
+        return m_readyFlag;
     }
 
     void MTestInputPort::setReady(const bool ready) noexcept
     {
-        assert(parent.haveLock());
-        readyFlag = ready;
-        PORT_LOGGER(trace, "ready=", readyFlag);
+        assert(m_parent.haveLock());
+        m_readyFlag = ready;
+        PORT_LOGGER(trace, "ready=", m_readyFlag);
     }
 
     MTestPortLink::MTestPortLink(MTestOutputPort& from, MTestInputPort& to) :
@@ -91,8 +91,8 @@ namespace Clypsalot
     PortLink* PTestPortType::makeLink(OutputPort& from, InputPort& to) const
     {
         const auto& ourTypeInfo = typeid(PTestPortType);
-        const auto& fromType = from.type;
-        const auto& toType = to.type;
+        const auto& fromType = from.type();
+        const auto& toType = to.type();
 
         if (typeid(fromType) != ourTypeInfo || typeid(toType) != ourTypeInfo)
         {
@@ -111,7 +111,7 @@ namespace Clypsalot
 
     bool PTestOutputPort::ready() const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         if (portLinks.size() == 0)
         {
@@ -137,7 +137,7 @@ namespace Clypsalot
 
     bool PTestInputPort::ready() const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         if (portLinks.size() == 0)
         {
@@ -163,15 +163,15 @@ namespace Clypsalot
 
     bool PTestPortLink::dirty() const noexcept
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        return dirtyFlag;
+        return m_dirtyFlag;
     }
 
     void PTestPortLink::dirty(const bool isDirty) noexcept
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        dirtyFlag = isDirty;
+        m_dirtyFlag = isDirty;
     }
 }

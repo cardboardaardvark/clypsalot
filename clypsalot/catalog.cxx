@@ -17,27 +17,27 @@
 
 namespace Clypsalot
 {
-    PortTypeCatalogEntryAddedEvent::PortTypeCatalogEntryAddedEvent(const PortTypeDescriptor& newEntry) :
+    PortTypeCatalogEntryAddedEvent::PortTypeCatalogEntryAddedEvent(const PortTypeDescriptor& in_entry) :
         Event(),
-        entry(newEntry)
+        entry(in_entry)
     { }
 
     PortTypeCatalog::PortTypeCatalog()
     {
-        events->add<PortTypeCatalogEntryAddedEvent>();
+        m_events->add<PortTypeCatalogEntryAddedEvent>();
     }
 
     void PortTypeCatalog::add(const PortTypeDescriptor& descriptor)
     {
         std::scoped_lock lock(*this);
 
-        if (catalogEntries.contains(descriptor.name))
+        if (m_catalogEntries.contains(descriptor.name))
         {
             throw KeyError(makeString("Duplicate port type name: ", descriptor.name), descriptor.name);
         }
 
-        catalogEntries[descriptor.name] = &descriptor;
-        events->send(PortTypeCatalogEntryAddedEvent(descriptor));
+        m_catalogEntries[descriptor.name] = &descriptor;
+        m_events->send(PortTypeCatalogEntryAddedEvent(descriptor));
     }
 
     std::vector<std::string> PortTypeCatalog::names() const noexcept
@@ -45,9 +45,9 @@ namespace Clypsalot
         std::scoped_lock lock(*this);
         std::vector<std::string> result;
 
-        result.reserve(catalogEntries.size());
+        result.reserve(m_catalogEntries.size());
 
-        for (const auto& [name, entry] : catalogEntries)
+        for (const auto& [name, entry] : m_catalogEntries)
         {
             result.push_back(name);
         }
@@ -59,31 +59,31 @@ namespace Clypsalot
     {
         std::scoped_lock lock(*this);
 
-        if (! catalogEntries.contains(name))
+        if (! m_catalogEntries.contains(name))
         {
             throw KeyError(makeString("No known port type name: ", name), name);
         }
 
-        return catalogEntries.at(name)->instance;
+        return m_catalogEntries.at(name)->instance;
     }
 
     const PortTypeDescriptor& PortTypeCatalog::descriptor(const std::string& name) const
     {
         std::scoped_lock lock(*this);
 
-        if (! catalogEntries.contains(name)) throw KeyError(makeString("No known type type name: ", name), name);
+        if (! m_catalogEntries.contains(name)) throw KeyError(makeString("No known type type name: ", name), name);
 
-        return *catalogEntries.at(name);
+        return *m_catalogEntries.at(name);
     }
 
-    ObjectCatalogEntryAddedEvent::ObjectCatalogEntryAddedEvent(const ObjectDescriptor& newEntry) :
+    ObjectCatalogEntryAddedEvent::ObjectCatalogEntryAddedEvent(const ObjectDescriptor& in_entry) :
         Event(),
-        entry(newEntry)
+        entry(in_entry)
     { }
 
     ObjectCatalog::ObjectCatalog()
     {
-        events->add<ObjectCatalogEntryAddedEvent>();
+        m_events->add<ObjectCatalogEntryAddedEvent>();
     }
 
     void ObjectCatalog::add(const ObjectDescriptor& descriptor)
@@ -96,7 +96,7 @@ namespace Clypsalot
         }
 
         catalogEntries[descriptor.kind] = &descriptor;
-        events->send(ObjectCatalogEntryAddedEvent(descriptor));
+        m_events->send(ObjectCatalogEntryAddedEvent(descriptor));
     }
 
     std::vector<std::string> ObjectCatalog::kinds() const noexcept

@@ -22,14 +22,14 @@ namespace Clypsalot
 {
     static ThreadQueue* threadQueueSingleton = nullptr;
     static Mutex threadQueueSingletonMutex;
-    thread_local bool ThreadQueue::insideQueueFlag = false;
+    thread_local bool ThreadQueue::m_insideQueueFlag = false;
 
     DebugMutex::DebugMutex() :
-        recurseOk(false)
+        m_recurseOk(false)
     { }
 
     DebugMutex::DebugMutex(const bool recurseOk) :
-        recurseOk(recurseOk)
+        m_recurseOk(recurseOk)
     { }
 
     DebugMutex::~DebugMutex()
@@ -39,7 +39,7 @@ namespace Clypsalot
 
     bool DebugMutex::_locked() const
     {
-        return std::thread::id() != lockedBy;
+        return std::thread::id() != m_lockedBy;
     }
 
     /**
@@ -48,13 +48,13 @@ namespace Clypsalot
      */
     bool DebugMutex::locked() const
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
         return _locked();
     }
 
     bool DebugMutex::_haveLock() const
     {
-        return std::this_thread::get_id() == lockedBy;
+        return std::this_thread::get_id() == m_lockedBy;
     }
 
     /**
@@ -63,14 +63,14 @@ namespace Clypsalot
      */
     bool DebugMutex::haveLock() const
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
         return _haveLock();
     }
 
     size_t DebugMutex::lockCount() const
     {
-        std::scoped_lock lock(metaMutex);
-        return lockCounter;
+        std::scoped_lock lock(m_metaMutex);
+        return m_lockCounter;
     }
 
     /**
@@ -81,19 +81,19 @@ namespace Clypsalot
      */
     void DebugMutex::lock()
     {
-        std::unique_lock lock(metaMutex);
+        std::unique_lock lock(m_metaMutex);
 
-        if (_haveLock() && ! recurseOk) throw MutexLockError("Recursive lock attempt on mutex");
+        if (_haveLock() && ! m_recurseOk) throw MutexLockError("Recursive lock attempt on mutex");
 
         lock.unlock();
-        guardedMutex.lock();
+        m_guardedMutex.lock();
         lock.lock();
 
-        if (! recurseOk) assert(! _locked());
+        if (! m_recurseOk) assert(! _locked());
 
-        lockedBy = std::this_thread::get_id();
+        m_lockedBy = std::this_thread::get_id();
 
-        if (recurseOk) lockCounter++;
+        if (m_recurseOk) m_lockCounter++;
     }
 
     /**
@@ -104,23 +104,23 @@ namespace Clypsalot
      */
     void DebugMutex::unlock()
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
 
         if (! _haveLock()) throw MutexUnlockError("Mutex was not locked by the calling thread");
 
         assert(_locked());
-        guardedMutex.unlock();
+        m_guardedMutex.unlock();
 
-        if (recurseOk)
+        if (m_recurseOk)
         {
-            if (--lockCounter == 0)
+            if (--m_lockCounter == 0)
             {
-                lockedBy = std::thread::id();
+                m_lockedBy = std::thread::id();
             }
         }
         else
         {
-            lockedBy = std::thread::id();
+            m_lockedBy = std::thread::id();
         }
     }
 
@@ -134,11 +134,11 @@ namespace Clypsalot
      */
     bool DebugMutex::tryLock()
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
 
         if (_haveLock()) throw MutexLockError("tryLock() would result in recursive locking of mutex");
 
-        auto lockResult = guardedMutex.try_lock();
+        auto lockResult = m_guardedMutex.try_lock();
 
         if (! lockResult)
         {
@@ -146,18 +146,18 @@ namespace Clypsalot
         }
 
         assert(! _locked());
-        lockedBy = std::this_thread::get_id();
+        m_lockedBy = std::this_thread::get_id();
         return lockResult;
     }
 
     Lockable::Lockable(const bool recurseOk) :
-        mutex(recurseOk)
+        m_mutex(recurseOk)
     { }
 
 #ifndef NDEBUG
     bool Lockable::haveLock() const
     {
-        return mutex.haveLock();
+        return m_mutex.haveLock();
     }
 #endif
 
@@ -172,17 +172,17 @@ namespace Clypsalot
 
     void Lockable::lock() const
     {
-        mutex.lock();
+        m_mutex.lock();
     }
 
     void Lockable::unlock() const
     {
-        mutex.unlock();
+        m_mutex.unlock();
     }
 
     bool Lockable::tryLock() const
     {
-        return mutex.try_lock();
+        return m_mutex.try_lock();
     }
 
     bool Lockable::try_lock() const
@@ -200,32 +200,32 @@ namespace Clypsalot
 
     bool SharedDebugMutex::_locked() const
     {
-        return std::thread::id() != lockedBy;
+        return std::thread::id() != m_lockedBy;
     }
 
     /// @brief Returns true if any thread holds an exclusive lock on the mutex
     bool SharedDebugMutex::locked() const
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
         return _locked();
     }
 
     bool SharedDebugMutex::_haveLock() const
     {
-        return std::this_thread::get_id() == lockedBy;
+        return std::this_thread::get_id() == m_lockedBy;
     }
 
     /// @brief Returns true if the calling thread holds an exclusive lock
     bool SharedDebugMutex::haveLock() const
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
         return _haveLock();
     }
 
     /// @brief Obtain an exclusive lock on the shared mutex.
     void SharedDebugMutex::lock()
     {
-        std::unique_lock lock(metaMutex);
+        std::unique_lock lock(m_metaMutex);
 
         if (_haveLock())
         {
@@ -238,12 +238,12 @@ namespace Clypsalot
         }
 
         lock.unlock();
-        guardedMutex.lock();
+        m_guardedMutex.lock();
         lock.lock();
 
         assert(! _locked());
-        assert(sharedBy.size() == 0);
-        lockedBy = std::this_thread::get_id();
+        assert(m_sharedBy.size() == 0);
+        m_lockedBy = std::this_thread::get_id();
     }
 
     /**
@@ -252,7 +252,7 @@ namespace Clypsalot
      */
     bool SharedDebugMutex::tryLock()
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
 
         if (_haveLock())
         {
@@ -264,14 +264,14 @@ namespace Clypsalot
             FATAL_ERROR("Recursive lock attempt of mutex by thread that has a shared lock");
         }
 
-        if (! guardedMutex.try_lock())
+        if (! m_guardedMutex.try_lock())
         {
             return false;
         }
 
         assert(! _locked());
         assert(! _sharedLocked());
-        lockedBy = std::this_thread::get_id();
+        m_lockedBy = std::this_thread::get_id();
 
         return true;
     }
@@ -285,26 +285,26 @@ namespace Clypsalot
     /// @brief Release an exclusive lock held on the shared mutex.
     void SharedDebugMutex::unlock()
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
 
-        if (std::this_thread::get_id() != lockedBy)
+        if (std::this_thread::get_id() != m_lockedBy)
         {
             FATAL_ERROR("Attempt to unlock mutex by thread that does not hold the lock");
         }
 
-        guardedMutex.unlock();
-        lockedBy = std::thread::id();
+        m_guardedMutex.unlock();
+        m_lockedBy = std::thread::id();
     }
 
     bool SharedDebugMutex::_sharedLocked() const
     {
-        return sharedBy.size() != 0;
+        return m_sharedBy.size() != 0;
     }
 
     /// @brief Returns true if any thread holds a shared lock on the mutex.
     bool SharedDebugMutex::sharedLocked() const
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
         return _sharedLocked();
     }
 
@@ -312,12 +312,12 @@ namespace Clypsalot
     {
         const auto currentThread = std::this_thread::get_id();
 
-        if (currentThread == lockedBy)
+        if (currentThread == m_lockedBy)
         {
             return true;
         }
 
-        if (sharedBy.contains(currentThread))
+        if (m_sharedBy.contains(currentThread))
         {
             return true;
         }
@@ -328,14 +328,14 @@ namespace Clypsalot
     /// @brief Returns true if the calling thread holds either a shared or exclusive lock
     bool SharedDebugMutex::haveSharedLock() const
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
         return _haveSharedLock();
     }
 
     /// @brief Obtain a shared lock on the mutex.
     void SharedDebugMutex::lockShared()
     {
-        std::unique_lock lock(metaMutex);
+        std::unique_lock lock(m_metaMutex);
 
         if (_haveLock())
         {
@@ -348,11 +348,11 @@ namespace Clypsalot
         }
 
         lock.unlock();
-        guardedMutex.lock_shared();
+        m_guardedMutex.lock_shared();
         lock.lock();
 
         assert(! _locked());
-        sharedBy[std::this_thread::get_id()] = true;
+        m_sharedBy[std::this_thread::get_id()] = true;
     }
 
     /// @brief Compatibility method for the C++ SharedLockable named requirement.
@@ -367,7 +367,7 @@ namespace Clypsalot
      */
     bool SharedDebugMutex::tryLockShared()
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
 
         if (_haveLock())
         {
@@ -379,13 +379,13 @@ namespace Clypsalot
             FATAL_ERROR("Recursive shared lock attempt");
         }
 
-        if (! guardedMutex.try_lock_shared())
+        if (! m_guardedMutex.try_lock_shared())
         {
             return false;
         }
 
         assert(! _locked());
-        sharedBy[std::this_thread::get_id()] = true;
+        m_sharedBy[std::this_thread::get_id()] = true;
         return true;
     }
 
@@ -398,7 +398,7 @@ namespace Clypsalot
      /// @brief Release a shared lock on the mutex.
     void SharedDebugMutex::unlockShared()
     {
-        std::scoped_lock lock(metaMutex);
+        std::scoped_lock lock(m_metaMutex);
 
         if (_haveLock())
         {
@@ -411,8 +411,8 @@ namespace Clypsalot
         }
 
         assert(! _locked());
-        guardedMutex.unlock_shared();
-        sharedBy.erase(std::this_thread::get_id());
+        m_guardedMutex.unlock_shared();
+        m_sharedBy.erase(std::this_thread::get_id());
     }
 
     /// @brief Compatibility method for use with the C++ SharedLockable named requirement.
@@ -444,24 +444,24 @@ namespace Clypsalot
 
     void ThreadQueue::worker()
     {
-        std::unique_lock lock(mutex);
+        std::unique_lock lock(m_mutex);
 
         LOGGER(debug, "A new worker thread is born");
 
-        ThreadQueue::insideQueueFlag = true;
+        ThreadQueue::m_insideQueueFlag = true;
 
         while(true)
         {
             LOGGER(trace, "Worker thread is starting a loop iteration");
-            workerCondVar.wait(lock, [&]
+            m_workerCondVar.wait(lock, [&]
             {
-                if (jobs.size() > 0)
+                if (m_jobs.size() > 0)
                 {
-                    LOGGER(trace, "Worker thread has a job to do; jobs=", jobs.size());
+                    LOGGER(trace, "Worker thread has a job to do; jobs=", m_jobs.size());
                     return true;
                 }
 
-                if (workers.size() - joinQueue.size() > numThreads)
+                if (m_workers.size() - m_joinQueue.size() > m_numThreads)
                 {
                     LOGGER(trace, "Worker thread needs to die");
                     return true;
@@ -471,20 +471,20 @@ namespace Clypsalot
                 return false;
             });
 
-            if (workers.size() - joinQueue.size() > numThreads)
+            if (m_workers.size() - m_joinQueue.size() > m_numThreads)
             {
                 LOGGER(debug, "Thread is quiting to reduce the number of workers");
-                joinQueue.push_back(std::this_thread::get_id());
-                condVar.notify_all();
+                m_joinQueue.push_back(std::this_thread::get_id());
+                m_condVar.notify_all();
                 return;
             }
 
-            if (jobs.size() > 0)
+            if (m_jobs.size() > 0)
             {
-                LOGGER(trace, "Taking job from thread queue; jobs=", jobs.size());
-                auto job = jobs.front();
+                LOGGER(trace, "Taking job from thread queue; jobs=", m_jobs.size());
+                auto job = m_jobs.front();
 
-                jobs.pop_front();
+                m_jobs.pop_front();
 
                 lock.unlock();
                 LOGGER(trace, "Executing job from queue");
@@ -498,51 +498,51 @@ namespace Clypsalot
 
     bool ThreadQueue::insideQueue() const noexcept
     {
-        return insideQueueFlag;
+        return m_insideQueueFlag;
     }
 
     size_t ThreadQueue::threads()
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        return numThreads;
+        return m_numThreads;
     }
 
     void ThreadQueue::threads(const size_t threads)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        numThreads = threads;
+        m_numThreads = threads;
         adjustThreads();
     }
 
     void ThreadQueue::adjustThreads()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        LOGGER(debug, "Adjusting number of threads in thread queue to ", numThreads);
+        LOGGER(debug, "Adjusting number of threads in thread queue to ", m_numThreads);
 
-        if (workers.size() == numThreads)
+        if (m_workers.size() == m_numThreads)
         {
             LOGGER(trace, "The number of workers is the same as numThreads");
         }
-        else if (workers.size() > numThreads)
+        else if (m_workers.size() > m_numThreads)
         {
-            workerCondVar.notify_all();
+            m_workerCondVar.notify_all();
 
-            condVar.wait(mutex, [&] { return workers.size() - joinQueue.size() == numThreads; });
-            assert(workers.size() - joinQueue.size() == numThreads);
+            m_condVar.wait(m_mutex, [&] { return m_workers.size() - m_joinQueue.size() == m_numThreads; });
+            assert(m_workers.size() - m_joinQueue.size() == m_numThreads);
 
-            for (const auto id : joinQueue)
+            for (const auto id : m_joinQueue)
             {
-                for (auto thread = workers.begin(); thread != workers.end();)
+                for (auto thread = m_workers.begin(); thread != m_workers.end();)
                 {
                     if (thread->get_id() == id)
                     {
                         LOGGER(debug, "Joining thread ", thread->get_id());
                         assert(thread->joinable());
                         thread->join();
-                        thread = workers.erase(thread);
+                        thread = m_workers.erase(thread);
                     }
                     else
                     {
@@ -553,27 +553,27 @@ namespace Clypsalot
         }
         else
         {
-            auto numStart = numThreads - workers.size();
+            auto numStart = m_numThreads - m_workers.size();
 
             LOGGER(trace, "Need to start ", numStart, " threads");
 
             for (size_t i = 0; i < numStart; i++)
             {
-                workers.emplace_back(std::bind(&ThreadQueue::worker, this));
+                m_workers.emplace_back(std::bind(&ThreadQueue::worker, this));
             }
         }
     }
 
     void ThreadQueue::post(const JobType& job)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        jobs.push_back(job);
+        m_jobs.push_back(job);
         // TODO Until more condition variables are added to handle the case of removing threads
         // all waiting threads need to be notified because more threads could be waiting
         // on the condition variable than just threads waiting for a job.
-        workerCondVar.notify_one();
-        LOGGER(trace, "Added job to thread queue; jobs=", jobs.size());
+        m_workerCondVar.notify_one();
+        LOGGER(trace, "Added job to thread queue; jobs=", m_jobs.size());
     }
 
     void initThreadQueue(const size_t numThreads)

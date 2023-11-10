@@ -45,11 +45,11 @@ TEST_CASE(Object_properties)
         auto& property = object->property(config.name);
 
         BOOST_CHECK(object->hasProperty(config.name));
-        BOOST_CHECK(property.name == config.name);
-        BOOST_CHECK(property.type == config.type);
-        BOOST_CHECK(property.configurable == config.configurable);
-        BOOST_CHECK(property.required == config.required);
-        BOOST_CHECK(property.publicMutable == config.publicMutable);
+        BOOST_CHECK(property.m_name == config.name);
+        BOOST_CHECK(property.m_type == config.type);
+        BOOST_CHECK(property.m_configurable == config.configurable);
+        BOOST_CHECK(property.m_required == config.required);
+        BOOST_CHECK(property.m_publicMutable == config.publicMutable);
         BOOST_CHECK(property.defined() != (config.initial.type() == typeid(nullptr)));
 
         numChecked++;

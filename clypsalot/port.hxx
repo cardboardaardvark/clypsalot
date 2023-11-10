@@ -21,30 +21,36 @@
 
 namespace Clypsalot
 {
-    struct PortType
+    class PortType
     {
-        const std::string& name;
+        protected:
+        const std::string& m_name;
 
-        PortType(const std::string& name);
+        PortType(const std::string& in_name);
+
+        public:
         virtual ~PortType() = default;
+        const std::string& name() const noexcept;
         virtual PortLink* makeLink(OutputPort& from, InputPort& to) const = 0;
     };
 
     class PortLink : protected Lockable
     {
-        bool endOfDataFlag = false;
+        bool m_endOfDataFlag = false;
+        // FIXME The output and input ports should be std::weak_ptr
+        OutputPort& m_from;
+        InputPort& m_to;
 
         public:
-        OutputPort& from;
-        InputPort& to;
-
         static std::string toString(const PortLink& link) noexcept;
-        PortLink(OutputPort& from, InputPort& to);
+        PortLink(OutputPort& in_from, InputPort& in_to);
         PortLink(const PortLink&) = delete;
         virtual ~PortLink() = default;
         void operator=(const PortLink&) = delete;
         bool operator==(const PortLink& rhs);
         bool operator!=(const PortLink& rhs);
+        OutputPort& from() const noexcept;
+        InputPort& to() const noexcept;
         void setEndOfData() noexcept;
         bool endOfData() const noexcept;
     };
@@ -52,21 +58,24 @@ namespace Clypsalot
     class Port
     {
         protected:
+        // FIXME The parent should be a std::weak_ptr
+        Object& m_parent;
+        const std::string m_name;
+        const PortType& m_type;
         std::vector<PortLink*> portLinks;
 
-        Port(const std::string& name, const PortType& type, Object& parent);
-        PortLink* findLink(const OutputPort& from, const InputPort& to) const noexcept;
+        Port(const std::string& in_name, const PortType& in_type, Object& in_parent);
+        PortLink* findLink(const OutputPort& in_from, const InputPort& in_to) const noexcept;
 
         public:
-        Object& parent;
-        const std::string name;
-        const PortType& type;
-
         Port(const Port&) = delete;
         virtual ~Port();
         void operator=(const Port&) = delete;
         bool operator==(const Port& rhs);
         bool operator!=(const Port& rhs);
+        const std::string& name() const noexcept;
+        const PortType& type() const noexcept;
+        Object& parent() const noexcept;
         const std::vector<PortLink*>& links() const noexcept;
         bool hasLink(const PortLink* link) const noexcept;
         void addLink(PortLink* link);

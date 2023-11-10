@@ -19,8 +19,8 @@
 
 namespace Clypsalot
 {
-    std::map<std::type_index, std::string> EventSender::eventNames = {};
-    Mutex EventSender::eventNamesMutex = {};
+    std::map<std::type_index, std::string> EventSender::m_eventNames = {};
+    Mutex EventSender::m_eventNamesMutex = {};
 
     [[noreturn]] static void noRegisteredEventError(const std::type_info& type)
     {
@@ -29,12 +29,12 @@ namespace Clypsalot
 
     /// @cond NO_DOCUMENT
     Subscription::Subscription(const std::shared_ptr<EventSender>& sender) :
-        weakSender(sender)
+        m_weakSender(sender)
     { }
     /// @endcond
 
     SubscriberBase::SubscriberBase(const std::shared_ptr<Clypsalot::Subscription>& subscription) :
-        weakSubscription(subscription)
+        m_weakSubscription(subscription)
     { }
 
     /**
@@ -43,12 +43,12 @@ namespace Clypsalot
      */
     bool Subscription::valid() const noexcept
     {
-        return weakSender.lock() != nullptr;
+        return m_weakSender.lock() != nullptr;
     }
 
     EventSender::~EventSender()
     {
-        for (const auto& [type, eventSubscribers] : subscribers)
+        for (const auto& [type, eventSubscribers] : m_subscribers)
         {
             for (const auto& subscriber : eventSubscribers)
             {
@@ -59,30 +59,30 @@ namespace Clypsalot
 
     std::string EventSender::eventName(const std::type_index& type)
     {
-        std::scoped_lock lock(eventNamesMutex);
-        return eventNames.at(type);
+        std::scoped_lock lock(m_eventNamesMutex);
+        return m_eventNames.at(type);
     }
 
     void EventSender::_add(const std::type_info& type)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         const auto eventName = typeName(type);
         LOGGER(trace, "Adding event: ", eventName);
 
-        const auto& [ iterator, result ] = subscribers.emplace(type, 0);
+        const auto& [ iterator, result ] = m_subscribers.emplace(type, 0);
 
         if (! result) {
             throw RuntimeError(makeString("Event is already registered with sender: ", eventName));
         }
 
-        std::scoped_lock lock(eventNamesMutex);
-        eventNames[type] = eventName;
+        std::scoped_lock lock(m_eventNamesMutex);
+        m_eventNames[type] = eventName;
     }
 
     void EventSender::add(const EventTypeList& events)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
         for(const auto event : events)
         {
@@ -92,27 +92,27 @@ namespace Clypsalot
 
     void EventSender::_subscribe(const std::type_info& type, SubscriberBase* subscriber)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        if (! subscribers.contains(type))
+        if (! m_subscribers.contains(type))
         {
             noRegisteredEventError(type);
         }
 
-        auto& eventSubscribers = subscribers.at(type);
+        auto& eventSubscribers = m_subscribers.at(type);
         auto subscription = std::make_shared<Subscription>(shared_from_this());
         eventSubscribers.push_back(subscriber);
     }
 
     void EventSender::_cleanupSubscribers() noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for (auto& [type, eventSubscribers] : subscribers)
+        for (auto& [type, eventSubscribers] : m_subscribers)
         {
             for (auto subscriber = eventSubscribers.begin(); subscriber != eventSubscribers.end();)
             {
-                if (! (*subscriber)->weakSubscription.lock())
+                if (! (*subscriber)->m_weakSubscription.lock())
                 {
                     LOGGER(trace, "Removing dead subscriber from ", eventName(type), " event");
                     subscriber = eventSubscribers.erase(subscriber);
@@ -131,7 +131,7 @@ namespace Clypsalot
      */
     void EventSender::cleanupSubscribers() noexcept
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
         _cleanupSubscribers();
     }
 
@@ -149,20 +149,20 @@ namespace Clypsalot
 
         LOGGER(trace, "Sending event: ", typeName(type));
 
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        if (! subscribers.contains(type))
+        if (! m_subscribers.contains(type))
         {
             noRegisteredEventError(type);
         }
 
         _cleanupSubscribers();
 
-        auto& eventSubscribers = subscribers.at(type);
+        auto& eventSubscribers = m_subscribers.at(type);
 
         for (const auto subscriber : eventSubscribers)
         {
-            auto subscription = subscriber->weakSubscription.lock();
+            auto subscription = subscriber->m_weakSubscription.lock();
 
             if (subscription == nullptr)
             {

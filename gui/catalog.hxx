@@ -34,7 +34,8 @@ struct CatalogEntryItem : public QTreeWidgetItem
 
 struct CatalogObjectItem : public CatalogEntryItem
 {
-    const Clypsalot::ObjectDescriptor& descriptor;
+    const Clypsalot::ObjectDescriptor& m_descriptor;
+
     CatalogObjectItem(QTreeWidgetItem* parent, const Clypsalot::ObjectDescriptor& descriptor);
 };
 
@@ -43,7 +44,8 @@ class CatalogMimeData : public QMimeData
     Q_OBJECT
 
     public:
-    const CatalogEntryItem* const entry;
+    const CatalogEntryItem* const m_entry;
+
     CatalogMimeData(const CatalogEntryItem* const entry, const QString& title);
 };
 
@@ -51,11 +53,11 @@ class Catalog : public QTreeWidget
 {
     Q_OBJECT
 
-    std::vector<std::shared_ptr<Clypsalot::Subscription>> subscriptions;
+    std::vector<std::shared_ptr<Clypsalot::Subscription>> m_subscriptions;
 
     protected:
-    QTreeWidgetItem* catalogObjects = nullptr;
-    QTreeWidgetItem* catalogPlugins = nullptr;
+    QTreeWidgetItem* m_catalogObjects = nullptr;
+    QTreeWidgetItem* m_catalogPlugins = nullptr;
 
     QTreeWidgetItem* makeTopLevelItem(const QString& title);
     void handleEvent(const Clypsalot::ObjectCatalogEntryAddedEvent& event);

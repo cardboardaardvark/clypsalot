@@ -46,12 +46,14 @@ namespace Clypsalot
     struct ObjectEvent : Event
     {
         SharedObject object;
+
         ObjectEvent(const SharedObject& sender);
     };
 
     struct ObjectFaultedEvent : ObjectEvent
     {
         const std::string message;
+
         ObjectFaultedEvent(const SharedObject& sender, const std::string& reason);
     };
 
@@ -75,18 +77,24 @@ namespace Clypsalot
 
     class Object : public Lockable, public Eventful, public std::enable_shared_from_this<Object>
     {
-        ObjectState currentState = ObjectState::initializing;
+        public:
+        using Id = std::size_t;
+
+        private:
+        const Id m_id;
+        const std::string& m_kind;
+        ObjectState m_state = ObjectState::initializing;
 
         void state(const ObjectState newState);
         void shutdown();
 
         protected:
-        std::condition_variable_any condVar;
-        std::map<std::string, Property> objectProperties;
-        std::vector<OutputPort*> outputPorts;
-        std::vector<InputPort*> inputPorts;
-        std::map<std::string, bool> userOutputPortTypes;
-        std::map<std::string, bool> userInputPortTypes;
+        std::condition_variable_any m_condVar;
+        std::map<std::string, Property> m_properties;
+        std::vector<OutputPort*> m_outputPorts;
+        std::vector<InputPort*> m_inputPorts;
+        std::map<std::string, bool> m_userOutputPortTypes;
+        std::map<std::string, bool> m_userInputPortTypes;
 
         bool endOfData() const noexcept;
         void fault(const std::string& message) noexcept;
@@ -133,16 +141,13 @@ namespace Clypsalot
         }
 
         public:
-        using Id = std::size_t;
-
-        const Id id;
-        const std::string& kind;
-
         static std::string toString(const Object& object) noexcept;
         Object(const std::string& kind);
         Object(const Object&) = delete;
         virtual ~Object() noexcept;
         void operator=(const Object&) = delete;
+        Id id() const noexcept;
+        const std::string& kind() const noexcept;
         ObjectState state() const noexcept;
         virtual bool ready() const noexcept;
         std::vector<PortLink*> links() const noexcept;
@@ -214,7 +219,7 @@ namespace Clypsalot
 
             for (const auto link : links)
             {
-                ports.emplace_back(link->from, link->to);
+                ports.emplace_back(link->from(), link->to());
             }
 
             for (const auto& linked : linkedObjects)

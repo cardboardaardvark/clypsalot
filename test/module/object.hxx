@@ -43,8 +43,8 @@ namespace Clypsalot
     class ProcessingTestObject : public TestObject
     {
         protected:
-        size_t* processCounterProperty = nullptr;
-        size_t* maxProcessProperty = nullptr;
+        size_t* m_processCounterProperty = nullptr;
+        size_t* m_maxProcessProperty = nullptr;
         bool done = false;
 
         public:

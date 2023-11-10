@@ -27,11 +27,11 @@ class ObjectPort : public WorkAreaWidget
 {
     Q_OBJECT
 
-    WorkAreaLabelWidget* nameLabel = nullptr;
-    QList<PortConnection*> connections;
+    WorkAreaLabelWidget* m_nameLabel = nullptr;
+    QList<PortConnection*> m_connections;
 
     public:
-    Object* const parentObject;
+    Object* const m_parentObject;
 
     ObjectPort(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
     const QString name();
@@ -69,9 +69,9 @@ class PortConnection : QGraphicsWidget
 {
     Q_OBJECT
 
-    ObjectOutput* const from;
-    ObjectInput* const to;
-    WorkAreaConnectionLine line;
+    ObjectOutput* const m_from;
+    ObjectInput* const m_to;
+    WorkAreaConnectionLine m_line;
 
     public:
     PortConnection(ObjectOutput* const from, ObjectInput* const to, QGraphicsObject* parent = nullptr);
@@ -83,26 +83,26 @@ class ObjectInfo : public WorkAreaWidget
     Q_OBJECT
 
     public:
-    WorkAreaLabelWidget* const kind;
-    WorkAreaLabelWidget* const state;
+    WorkAreaLabelWidget* const m_kind;
+    WorkAreaLabelWidget* const m_state;
 
     explicit ObjectInfo(QGraphicsItem* parent = nullptr);
 };
 
 struct ObjectUpdate
 {
-    Clypsalot::ObjectState state;
-    std::vector<std::pair<std::string, std::string>> propertyValues;
+    Clypsalot::ObjectState m_state;
+    std::vector<std::pair<std::string, std::string>> m_propertyValues;
 };
 
 class Object : public WorkAreaWidget
 {
     Q_OBJECT
 
-    ObjectInfo* info;
+    ObjectInfo* m_info;
     std::map<QString, WorkAreaLabelWidget*> m_propertyValues;
-    std::vector<std::shared_ptr<Clypsalot::Subscription>> subscriptions;
-    std::atomic_bool checkObjectSignalNeeded = ATOMIC_VAR_INIT(true);
+    std::vector<std::shared_ptr<Clypsalot::Subscription>> m_subscriptions;
+    std::atomic_bool m_checkObjectSignalNeeded = ATOMIC_VAR_INIT(true);
 
     protected:
     void handleEvent(const Clypsalot::ObjectStateChangedEvent& event);
@@ -117,7 +117,7 @@ class Object : public WorkAreaWidget
     void updateObject();
 
     public:
-    const Clypsalot::SharedObject object;
+    const Clypsalot::SharedObject m_object;
 
     Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent = nullptr);
 

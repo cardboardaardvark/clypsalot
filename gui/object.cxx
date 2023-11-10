@@ -31,31 +31,31 @@ static const qreal portBorderWidth = 1;
 
 ObjectPort::ObjectPort(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
     WorkAreaWidget(parent),
-    parentObject(parentObject)
+    m_parentObject(parentObject)
 {
     setFlag(ItemSendsGeometryChanges);
 
     auto layout = new QGraphicsLinearLayout(Qt::Horizontal);
     setLayout(layout);
 
-    nameLabel = new WorkAreaLabelWidget(name);
-    nameLabel->setFlag(ItemStacksBehindParent);
-    layout->addItem(nameLabel);
+    m_nameLabel = new WorkAreaLabelWidget(name);
+    m_nameLabel->setFlag(ItemStacksBehindParent);
+    layout->addItem(m_nameLabel);
 }
 
 const QString ObjectPort::name()
 {
-    return nameLabel->text();
+    return m_nameLabel->text();
 }
 
 void ObjectPort::addConnection(PortConnection* connection)
 {
-    connections.append(connection);
+    m_connections.append(connection);
 }
 
 void ObjectPort::updateConnectionPositions()
 {
-    for (auto connection : connections) connection->updatePosition();
+    for (auto connection : m_connections) connection->updatePosition();
 }
 
 ObjectInput::ObjectInput(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
@@ -89,7 +89,7 @@ void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     auto workArea = MainWindow::instance()->workArea();
     auto lineStart = mapToScene(connectPos());
     auto cursorPos = mapToScene(event->pos());
-    auto item = workArea->scene->itemAt(cursorPos, QTransform());
+    auto item = workArea->m_scene->itemAt(cursorPos, QTransform());
 
     if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
     {
@@ -105,7 +105,7 @@ void ObjectOutput::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
     MainWindow::instance()->workArea()->resetConnectionDrag();
 
     auto lastPos = event->lastPos();
-    auto item = MainWindow::instance()->workArea()->scene->itemAt(mapToScene(lastPos), QTransform());
+    auto item = MainWindow::instance()->workArea()->m_scene->itemAt(mapToScene(lastPos), QTransform());
 
     if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
     {
@@ -124,8 +124,8 @@ QPointF ObjectOutput::connectPos()
 void ObjectOutput::createConnection(ObjectInput* to)
 {
     try {
-        auto fromObject = parentObject->object;
-        auto toObject = to->parentObject->object;
+        auto fromObject = m_parentObject->m_object;
+        auto toObject = to->m_parentObject->m_object;
 
         THREAD_CALL
         ({
@@ -151,27 +151,27 @@ void ObjectOutput::createConnection(ObjectInput* to)
 
 PortConnection::PortConnection(ObjectOutput* const from, ObjectInput* const to, QGraphicsObject* parent) :
     QGraphicsWidget(parent),
-    from(from),
-    to(to),
-    line(QLineF(), this)
+    m_from(from),
+    m_to(to),
+    m_line(QLineF(), this)
 {
     updatePosition();
-    MainWindow::instance()->workArea()->scene->addItem(this);
+    MainWindow::instance()->workArea()->m_scene->addItem(this);
 }
 
 void PortConnection::updatePosition()
 {
-    line.setLine
+    m_line.setLine
     ({
-        mapFromItem(from, from->connectPos()),
-        mapFromItem(to, to->connectPos()),
+        mapFromItem(m_from, m_from->connectPos()),
+        mapFromItem(m_to, m_to->connectPos()),
     });
 }
 
 ObjectInfo::ObjectInfo(QGraphicsItem* parent) :
     WorkAreaWidget(parent),
-    kind(new WorkAreaLabelWidget()),
-    state(new WorkAreaLabelWidget())
+    m_kind(new WorkAreaLabelWidget()),
+    m_state(new WorkAreaLabelWidget())
 {
     setBorderWidth(infoBorderWidth);
 
@@ -179,16 +179,16 @@ ObjectInfo::ObjectInfo(QGraphicsItem* parent) :
 
     setLayout(layout);
 
-    layout->addItem(kind);
-    layout->setAlignment(kind, Qt::AlignHCenter);
+    layout->addItem(m_kind);
+    layout->setAlignment(m_kind, Qt::AlignHCenter);
 
-    layout->addItem(state);
-    layout->setAlignment(state, Qt::AlignHCenter);
+    layout->addItem(m_state);
+    layout->setAlignment(m_state, Qt::AlignHCenter);
 }
 
 Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
     WorkAreaWidget(parent),
-    object(object)
+    m_object(object)
 {
     setFlag(ItemIsMovable);
     setAutoFillBackground(true);
@@ -203,8 +203,8 @@ Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
 
     mainLayout->addItem(inputsLayout);
 
-    info = new ObjectInfo();
-    infoLayout->addItem(info);
+    m_info = new ObjectInfo();
+    infoLayout->addItem(m_info);
     infoLayout->addItem(propertiesLayout);
     mainLayout->addItem(infoLayout);
 
@@ -219,22 +219,22 @@ Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
 
 void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayout* outputsLayout, QGraphicsGridLayout* propertiesLayout)
 {
-    std::scoped_lock lock(*object);
+    std::scoped_lock lock(*m_object);
 
-    subscriptions.push_back(object->subscribe<Clypsalot::ObjectStateChangedEvent>(std::bind(&Object::handleEvent, this, _1)));
-    info->kind->setText(QString::fromStdString(object->kind));
+    m_subscriptions.push_back(m_object->subscribe<Clypsalot::ObjectStateChangedEvent>(std::bind(&Object::handleEvent, this, _1)));
+    m_info->m_kind->setText(QString::fromStdString(m_object->kind()));
 
-    for (auto port : object->inputs())
+    for (auto port : m_object->inputs())
     {
-        auto inputName = QString::fromStdString(port->name);
+        auto inputName = QString::fromStdString(port->name());
         auto input = new ObjectInput(this, inputName);
         input->setBorderWidth(portBorderWidth);
         inputsLayout->addItem(input);
     }
 
-    for (auto port : object->outputs())
+    for (auto port : m_object->outputs())
     {
-        auto outputName = QString::fromStdString(port->name);
+        auto outputName = QString::fromStdString(port->name());
         auto output = new ObjectOutput(this, outputName);
         output->setBorderWidth(portBorderWidth);
         outputsLayout->addItem(output);
@@ -242,7 +242,7 @@ void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayo
 
     uint rowNum = 0;
 
-    for (const auto& [name, property] : object->properties())
+    for (const auto& [name, property] : m_object->properties())
     {
         auto qName = QString::fromStdString(name);
         auto nameLabel = new WorkAreaLabelWidget(qName);
@@ -258,9 +258,9 @@ void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayo
 // This is called from inside the Clypsalot thread queue not the UI thread.
 void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent&)
 {
-    if (checkObjectSignalNeeded)
+    if (m_checkObjectSignalNeeded)
     {
-        checkObjectSignalNeeded = false;
+        m_checkObjectSignalNeeded = false;
         Q_EMIT checkObject();
     }
 }
@@ -290,29 +290,29 @@ QVariant Object::itemChange(const GraphicsItemChange change, const QVariant& val
 
 void Object::updateObject()
 {
-    checkObjectSignalNeeded = true;
+    m_checkObjectSignalNeeded = true;
 
     auto update = THREAD_CALL
     ({
-        auto update = std::make_unique<ObjectUpdate>();
-        std::lock_guard lock(*object);
-        const auto& properties = object->properties();
-        auto& propertyValues = update->propertyValues;
+         auto retval = std::make_unique<ObjectUpdate>();
+         std::lock_guard lock(*m_object);
+         const auto& properties = m_object->properties();
+         auto& propertyValues = retval->m_propertyValues;
 
-        update->state = object->state();
-        propertyValues.reserve(properties.size());
+         retval->m_state = m_object->state();
+         propertyValues.reserve(properties.size());
 
-        for (const auto& [name, property] : properties)
-        {
-            if (property.defined()) propertyValues.emplace_back(name, property.valueToString());
-        }
+         for (const auto& [name, property] : properties)
+         {
+             if (property.defined()) propertyValues.emplace_back(name, property.valueToString());
+         }
 
-        return update;
-    });
+         return retval;
+     });
 
-    info->state->setText(QString::fromStdString(Clypsalot::toString(update->state)));
+     m_info->m_state->setText(QString::fromStdString(Clypsalot::toString(update->m_state)));
 
-    for (const auto& [name, value] : update->propertyValues)
+    for (const auto& [name, value] : update->m_propertyValues)
     {
         auto qName = QString::fromStdString(name);
         if (! m_propertyValues.contains(qName)) continue;
@@ -334,8 +334,8 @@ void Object::start()
 {
     THREAD_CALL
     ({
-         std::scoped_lock lock(*object);
-         Clypsalot::startObject(object);
+         std::scoped_lock lock(*m_object);
+         Clypsalot::startObject(m_object);
     });
 }
 
@@ -343,8 +343,8 @@ void Object::pause()
 {
     THREAD_CALL
     ({
-        std::scoped_lock lock(*object);
-        Clypsalot::pauseObject(object);
+        std::scoped_lock lock(*m_object);
+        Clypsalot::pauseObject(m_object);
     });
 }
 
@@ -352,7 +352,7 @@ void Object::stop()
 {
     THREAD_CALL
     ({
-        std::scoped_lock lock(*object);
-        Clypsalot::stopObject(object);
+        std::scoped_lock lock(*m_object);
+        Clypsalot::stopObject(m_object);
     });
 }

@@ -162,14 +162,14 @@ TEST_CASE(linkPorts_function_list)
     BOOST_CHECK(sink->links().size() == 2);
 
     auto link = links.at(0);
-    BOOST_CHECK(link->from == output1);
-    BOOST_CHECK(link->to == input1);
+    BOOST_CHECK(link->from() == output1);
+    BOOST_CHECK(link->to() == input1);
     BOOST_CHECK(output1.links().at(0) == link);
     BOOST_CHECK(input1.links().at(0) == link);
 
     link = links.at(1);
-    BOOST_CHECK(link->from == output2);
-    BOOST_CHECK(link->to == input2);
+    BOOST_CHECK(link->from() == output2);
+    BOOST_CHECK(link->to() == input2);
     BOOST_CHECK(output2.links().at(0) == link);
     BOOST_CHECK(input2.links().at(0) == link);
 }

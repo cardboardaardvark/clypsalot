@@ -54,7 +54,7 @@ namespace Clypsalot
      */
     class Subscription
     {
-        const std::weak_ptr<EventSender> weakSender;
+        const std::weak_ptr<EventSender> m_weakSender;
 
         public:
         /// @cond NO_DOCUMENT
@@ -65,7 +65,7 @@ namespace Clypsalot
 
     struct SubscriberBase
     {
-        const std::weak_ptr<Subscription> weakSubscription;
+        const std::weak_ptr<Subscription> m_weakSubscription;
 
         SubscriberBase(const std::shared_ptr<Subscription>& subscription);
         virtual ~SubscriberBase() = default;
@@ -78,16 +78,16 @@ namespace Clypsalot
         using EventType = T;
         using Handler = std::function<void (const EventType&)>;
 
-        const Handler handler;
+        const Handler m_handler;
 
         HandlerSubscriber(const std::shared_ptr<Subscription>& subscription, const Handler& eventHandler) :
             SubscriberBase(subscription),
-            handler(eventHandler)
+            m_handler(eventHandler)
         { }
 
         virtual void send(const Event& event)
         {
-            handler(dynamic_cast<const EventType&>(event));
+            m_handler(dynamic_cast<const EventType&>(event));
         }
     };
 
@@ -96,16 +96,16 @@ namespace Clypsalot
     {
         using EventType = T;
 
-        const std::weak_ptr<MessageProcessor> weakProcessor;
+        const std::weak_ptr<MessageProcessor> m_weakProcessor;
 
         MessageSubscriber(const std::shared_ptr<Subscription>& subscription, const std::shared_ptr<MessageProcessor> processor) :
             SubscriberBase(subscription),
-            weakProcessor(processor)
+            m_weakProcessor(processor)
         { }
 
         virtual void send(const Event& event)
         {
-            auto processor = weakProcessor.lock();
+            auto processor = m_weakProcessor.lock();
 
             if (! processor) return;
 
@@ -118,9 +118,9 @@ namespace Clypsalot
      */
     class EventSender : Lockable, public std::enable_shared_from_this<EventSender>
     {
-        static std::map<std::type_index, std::string> eventNames;
-        static Mutex eventNamesMutex;
-        std::map<std::type_index, std::vector<SubscriberBase*>> subscribers;
+        static std::map<std::type_index, std::string> m_eventNames;
+        static Mutex m_eventNamesMutex;
+        std::map<std::type_index, std::vector<SubscriberBase*>> m_subscribers;
 
         static std::string eventName(const std::type_index& type);
         void _add(const std::type_info& type);
@@ -145,7 +145,7 @@ namespace Clypsalot
         template <std::derived_from<Event> T>
         void add()
         {
-            std::scoped_lock lock(mutex);
+            std::scoped_lock lock(m_mutex);
             const auto& type = typeid(T);
             _add(type);
         }
@@ -199,7 +199,7 @@ namespace Clypsalot
     class Eventful
     {
         protected:
-        const std::shared_ptr<EventSender> events = std::make_shared<EventSender>();
+        const std::shared_ptr<EventSender> m_events = std::make_shared<EventSender>();
 
         public:
         template <std::derived_from<Event> T>
@@ -207,7 +207,7 @@ namespace Clypsalot
         {
             // No lock on the object mutex is needed because the EventSender is thread safe
             // and the events shared_ptr never changes after construction.
-            return events->subscribe<T>(handler);
+            return m_events->subscribe<T>(handler);
         }
 
         template <std::derived_from<Event> T>
@@ -215,8 +215,7 @@ namespace Clypsalot
         {
             // No lock on the object mutex is needed because the EventSender is thread safe
             // and the events shared_ptr never changes after construction.
-            return events->subscribe<T>(messages);
+            return m_events->subscribe<T>(messages);
         }
-
     };
 }

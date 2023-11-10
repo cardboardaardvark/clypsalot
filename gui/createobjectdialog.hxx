@@ -31,13 +31,13 @@ class PortEditor : public QWidget
     Q_OBJECT
 
     protected:
-    QVBoxLayout* mainLayout;
-    QHBoxLayout* topLayout;
-    QLineEdit* portNameInput;
-    QComboBox* portTypeInput;
-    QPushButton* addPortButton;
-    QPushButton* removePortButton;
-    QTableWidget* portTable;
+    QVBoxLayout* m_mainLayout = nullptr;
+    QHBoxLayout* m_topLayout = nullptr;
+    QLineEdit* m_portNameInput = nullptr;
+    QComboBox* m_portTypeInput = nullptr;
+    QPushButton* m_addPortButton = nullptr;
+    QPushButton* m_removePortButton = nullptr;
+    QTableWidget* m_portTable = nullptr;
 
     QLineEdit* makePortNameInput();
     QComboBox* makePortTypeInput();
@@ -62,9 +62,9 @@ class CreateObjectDialog : public QDialog
 {
     Q_OBJECT
 
-    Ui::CreateObjectDialog *ui;
-    std::vector<std::string> outputTypes;
-    std::vector<std::string> inputTypes;
+    Ui::CreateObjectDialog* m_ui;
+    std::vector<std::string> m_outputTypes;
+    std::vector<std::string> m_inputTypes;
 
     void initObject();
     void initTabs();
@@ -74,8 +74,8 @@ class CreateObjectDialog : public QDialog
     void editorReady(bool);
 
     public:
-    const Clypsalot::ObjectDescriptor& descriptor;
-    const Clypsalot::SharedObject object;
+    const Clypsalot::ObjectDescriptor& m_descriptor;
+    const Clypsalot::SharedObject m_object;
 
     CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor);
     ~CreateObjectDialog();

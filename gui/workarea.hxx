@@ -54,7 +54,7 @@ class WorkAreaLabelWidget : public WorkAreaWidget
 {
     Q_OBJECT
 
-    QGraphicsSimpleTextItem textItem;
+    QGraphicsSimpleTextItem m_textItem;
 
     public:
     WorkAreaLabelWidget(const QString& text = "", QGraphicsItem* parent = nullptr);
@@ -88,10 +88,10 @@ class WorkArea : public QGraphicsView
 {
     Q_OBJECT
 
-    WorkAreaConnectionLine* connectionDragLine = nullptr;
+    WorkAreaConnectionLine* m_connectionDragLine = nullptr;
 
     public:
-    WorkAreaScene* const scene;
+    WorkAreaScene* const m_scene;
 
     explicit WorkArea(QWidget* parent = nullptr);
     QList<Object*> objects();

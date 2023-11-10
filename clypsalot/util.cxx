@@ -27,12 +27,12 @@ namespace Clypsalot
     }
 
     Finally::Finally(const Function& finally) :
-        finally(finally)
+        m_finally(finally)
     { }
 
     Finally::~Finally()
     {
-        finally();
+        m_finally();
     }
 
     std::string version() noexcept

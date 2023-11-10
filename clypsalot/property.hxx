@@ -64,9 +64,9 @@ namespace Clypsalot
             StringType* string;
         };
 
-        const Lockable& parent;
-        Container container;
-        bool hasValue = false;
+        const Lockable& m_parent;
+        Container m_container;
+        bool m_hasValue = false;
 
         protected:
         void set(const std::any& value);
@@ -82,11 +82,11 @@ namespace Clypsalot
         StringType& stringRef();
 
         public:
-        const std::string name;
-        const PropertyType type;
-        const bool configurable;
-        const bool required;
-        const bool publicMutable;
+        const std::string m_name;
+        const PropertyType m_type;
+        const bool m_configurable;
+        const bool m_required;
+        const bool m_publicMutable;
 
         Property(const Lockable& parent, const std::string& name, const PropertyType type, const bool configurable, const bool required, const bool publicMutable, const std::any& initial = nullptr);
         Property(const Property&) = delete;

@@ -22,8 +22,8 @@
 namespace Clypsalot
 {
     /// @cond NO_DOCUMENT
-    Error::Error(const std::string& errorMessage) :
-        message(errorMessage)
+    Error::Error(const std::string& message) :
+        m_message(message)
     { }
     /// @endcond
 
@@ -33,63 +33,63 @@ namespace Clypsalot
      */
     const char* Error::what() const noexcept
     {
-        return message.c_str();
+        return m_message.c_str();
     }
 
     DuplicateLinkError::DuplicateLinkError(const OutputPort& from, const InputPort& to) :
         Error("Ports are already linked"),
-        from(from),
-        to(to)
+        m_from(from),
+        m_to(to)
     { }
 
-    ImmutableError::ImmutableError(const std::string& errorMessage) :
-        Error(errorMessage)
+    ImmutableError::ImmutableError(const std::string& message) :
+        Error(message)
     { }
 
     /// @cond NO_DOCUMENT
-    KeyError::KeyError(const std::string& errorMessage, const std::string& keyName) :
-        Error(errorMessage),
-        key(keyName)
+    KeyError::KeyError(const std::string& message, const std::string& keyName) :
+        Error(message),
+        m_key(keyName)
     { }
     /// @endcond
 
-    MutexLockError::MutexLockError(const std::string& errorMessage) :
-        Error(errorMessage)
+    MutexLockError::MutexLockError(const std::string& message) :
+        Error(message)
     { }
 
-    MutexUnlockError::MutexUnlockError(const std::string& errorMessage) :
-        Error(errorMessage)
+    MutexUnlockError::MutexUnlockError(const std::string& message) :
+        Error(message)
     { }
 
     ObjectStateChangeError::ObjectStateChangeError(const SharedObject& object, const ObjectState oldState, const ObjectState newState) :
         Error(makeString("State change is invalid: ", formatStateChange(oldState, newState))),
-        object(object),
-        oldState(oldState),
-        newState(newState)
+        m_object(object),
+        m_oldState(oldState),
+        m_newState(newState)
     { }
 
-    ObjectStateError::ObjectStateError(const SharedObject& object, const ObjectState state, const std::string& errorMessage) :
-        Error(errorMessage),
-        object(object),
-        state(state)
+    ObjectStateError::ObjectStateError(const SharedObject& object, const ObjectState state, const std::string& message) :
+        Error(message),
+        m_object(object),
+        m_state(state)
     { }
 
     /// @cond NO_DOCUMENT
-    RuntimeError::RuntimeError(const std::string& errorMessage) :
-        Error(errorMessage)
+    RuntimeError::RuntimeError(const std::string& message) :
+        Error(message)
     { }
     /// @endcond
 
-    TypeError::TypeError(const std::string& errorMessage) :
-        Error(errorMessage)
+    TypeError::TypeError(const std::string& message) :
+        Error(message)
     { }
 
-    UndefinedError::UndefinedError(const std::string& errorMessage) :
-        Error(errorMessage)
+    UndefinedError::UndefinedError(const std::string& message) :
+        Error(message)
     { }
 
-    ValueError::ValueError(const std::string& errorMessage) :
-        Error(errorMessage)
+    ValueError::ValueError(const std::string& message) :
+        Error(message)
     { }
 
     /**

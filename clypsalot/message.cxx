@@ -22,13 +22,13 @@ namespace Clypsalot
     {
         LOGGER(trace, "MessageProcessor is being destroyed");
 
-        std::unique_lock lock(mutex);
+        std::unique_lock lock(m_mutex);
 
-        receiving = false;
+        m_receiving = false;
 
-        condVar.wait(lock, [this]
+        m_condVar.wait(lock, [this]
         {
-            if (processing)
+            if (m_processing)
             {
                 LOGGER(trace, "Waiting for MessageProcessor to finish executing inside the ThreadQueue");
                 return false;
@@ -42,18 +42,18 @@ namespace Clypsalot
     {
         LOGGER(trace, "Registering new message handler for ", typeName(type));
 
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        if (handlers.contains(type)) throw RuntimeError(makeString("Handler already registered for message type: ", typeName(type)));
+        if (m_handlers.contains(type)) throw RuntimeError(makeString("Handler already registered for message type: ", typeName(type)));
 
-        handlers[type] = handler;
+        m_handlers[type] = handler;
     }
 
     bool MessageProcessor::registered(const std::type_info& type)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        return handlers.contains(type);
+        return m_handlers.contains(type);
     }
 
     bool MessageProcessor::receive(const Message* message)
@@ -61,26 +61,26 @@ namespace Clypsalot
         const auto& type = typeid(*message);
         LOGGER(trace, "Receiving Message: ", typeName(type));
 
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
-        if (! handlers.contains(type))
+        if (! m_handlers.contains(type))
         {
             throw RuntimeError(makeString("No handler registered for message type: ", typeName(type)));
         }
 
-        if (! receiving)
+        if (! m_receiving)
         {
             LOGGER(trace, "Will not handle message because MessageProcessor is not receiving messages: ", typeName(type));
             return false;
         }
 
-        queue.push_back(message);
+        m_queue.push_back(message);
 
-        if (! processing)
+        if (! m_processing)
         {
             LOGGER(trace, "Submitting job for MessageProcessor to run from ThreadQueue");
             threadQueuePost(std::bind(&MessageProcessor::process, this));
-            processing = true;
+            m_processing = true;
         }
 
         return true;
@@ -90,20 +90,20 @@ namespace Clypsalot
     {
         LOGGER(trace, "MessageProcessor is running inside ThreadQueue");
 
-        std::unique_lock lock(mutex);
+        std::unique_lock lock(m_mutex);
 
-        assert(processing);
+        assert(m_processing);
 
-        while (queue.size() > 0)
+        while (m_queue.size() > 0)
         {
-            assert(mutex.haveLock());
+            assert(m_mutex.haveLock());
 
-            LOGGER(trace, "MessageProcessor queue size: ", queue.size());
+            LOGGER(trace, "MessageProcessor queue size: ", m_queue.size());
 
-            auto message = queue.front();
-            auto handler = handlers.at(typeid(*message));
+            auto message = m_queue.front();
+            auto handler = m_handlers.at(typeid(*message));
 
-            queue.pop_front();
+            m_queue.pop_front();
 
             lock.unlock();
             handler(*message);
@@ -111,9 +111,9 @@ namespace Clypsalot
             lock.lock();
         }
 
-        assert(mutex.haveLock());
-        processing = false;
-        condVar.notify_all();
+        assert(m_mutex.haveLock());
+        m_processing = false;
+        m_condVar.notify_all();
 
         LOGGER(trace, "MessageProcessor is done running inside ThreadQueue");
     }

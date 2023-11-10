@@ -30,10 +30,10 @@ namespace Clypsalot
         /**
          * @brief A human readable error message describing what went wrong.
          */
-        const std::string message;
+        const std::string m_message;
 
         /// @cond NO_DOCUMENT
-        Error(const std::string& errorMessage);
+        Error(const std::string& message);
         /// @endcond
         virtual ~Error() = default;
         virtual const char* what() const noexcept override;
@@ -41,15 +41,15 @@ namespace Clypsalot
 
     struct DuplicateLinkError : public Error
     {
-        const OutputPort& from;
-        const InputPort& to;
+        const OutputPort& m_from;
+        const InputPort& m_to;
 
         DuplicateLinkError(const OutputPort& from, const InputPort& to);
     };
 
     struct ImmutableError : public Error
     {
-        ImmutableError(const std::string& errorMessage);
+        ImmutableError(const std::string& message);
     };
 
     /**
@@ -58,16 +58,16 @@ namespace Clypsalot
     struct KeyError : public Error
     {
         /// @brief The key name related to the error.
-        const std::string key;
+        const std::string m_key;
 
         /// @cond NO_DOCUMENT
-        KeyError(const std::string& errorMessage, const std::string& keyName);
+        KeyError(const std::string& message, const std::string& key);
         /// @endcond
     };
 
     struct MutexLockError : public Error
     {
-        MutexLockError(const std::string& errorMessage);
+        MutexLockError(const std::string& message);
     };
 
     struct MutexUnlockError : public Error
@@ -77,9 +77,9 @@ namespace Clypsalot
 
     struct ObjectStateChangeError : public Error
     {
-        const SharedObject object;
-        const ObjectState oldState;
-        const ObjectState newState;
+        const SharedObject m_object;
+        const ObjectState m_oldState;
+        const ObjectState m_newState;
 
         ObjectStateChangeError(const SharedObject& object, const ObjectState oldState, const ObjectState newState);
     };
@@ -90,10 +90,10 @@ namespace Clypsalot
      */
     struct ObjectStateError : public Error
     {
-        const SharedObject object;
-        const ObjectState state;
+        const SharedObject m_object;
+        const ObjectState m_state;
 
-        ObjectStateError(const SharedObject& object, const ObjectState state, const std::string& errorMessage);
+        ObjectStateError(const SharedObject& object, const ObjectState state, const std::string& message);
     };
 
     /**
@@ -102,23 +102,23 @@ namespace Clypsalot
     struct RuntimeError : public Error
     {
         /// @cond NO_DOCUMENT
-        RuntimeError(const std::string& errorMessage);
+        RuntimeError(const std::string& message);
         /// @endcond
     };
 
     struct TypeError : public Error
     {
-        TypeError(const std::string& errorMessage);
+        TypeError(const std::string& message);
     };
 
     struct UndefinedError : public Error
     {
-        UndefinedError(const std::string& errorMessage);
+        UndefinedError(const std::string& message);
     };
 
     struct ValueError : public Error
     {
-        ValueError(const std::string& errorMessage);
+        ValueError(const std::string& message);
     };
 
     [[noreturn]] void fatalError(const std::string& message, const char* file, const std::size_t line);

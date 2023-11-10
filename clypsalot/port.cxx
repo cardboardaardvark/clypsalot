@@ -27,28 +27,33 @@ namespace Clypsalot
     }
 
     PortType::PortType(const std::string& name) :
-        name(name)
+        m_name(name)
     { }
+
+    const std::string& PortType::name() const noexcept
+    {
+        return m_name;
+    }
 
     std::string PortLink::toString(const PortLink& link) noexcept
     {
         std::string retval;
 
-        retval += Clypsalot::toString(link.from);
+        retval += Clypsalot::toString(link.m_from);
         retval += " -> ";
-        retval += Clypsalot::toString(link.to);
+        retval += Clypsalot::toString(link.m_to);
 
         return retval;
     }
 
-    PortLink::PortLink(OutputPort& from, InputPort& to) :
-        from(from),
-        to(to)
+    PortLink::PortLink(OutputPort& in_from, InputPort& in_to) :
+        m_from(in_from),
+        m_to(in_to)
     { }
 
     bool PortLink::operator==(const PortLink& rhs)
     {
-        if (from == rhs.from && to == rhs.to) return true;
+        if (m_from == rhs.m_from && m_to == rhs.m_to) return true;
         return false;
     }
 
@@ -57,29 +62,39 @@ namespace Clypsalot
         return ! operator==(rhs);
     }
 
+    OutputPort& PortLink::from() const noexcept
+    {
+        return m_from;
+    }
+
+    InputPort& PortLink::to() const noexcept
+    {
+        return m_to;
+    }
+
     void PortLink::setEndOfData() noexcept
     {
-        std::scoped_lock lock(mutex);
-        endOfDataFlag = true;
+        std::scoped_lock lock(m_mutex);
+        m_endOfDataFlag = true;
     }
 
     bool PortLink::endOfData() const noexcept
     {
-        std::scoped_lock lock(mutex);
-        return endOfDataFlag;
+        std::scoped_lock lock(m_mutex);
+        return m_endOfDataFlag;
     }
 
-    Port::Port(const std::string& name, const PortType& type, Object& parent) :
-        parent(parent),
-        name(name),
-        type(type)
+    Port::Port(const std::string& in_name, const PortType& in_type, Object& in_parent) :
+        m_parent(in_parent),
+        m_name(in_name),
+        m_type(in_type)
     { }
 
     Port::~Port()
     {
         if (portLinks.size() > 0)
         {
-            FATAL_ERROR(makeString("Port had links during destruction on ", parent));
+            FATAL_ERROR(makeString("Port had links during destruction on ", m_parent));
         }
     }
 
@@ -93,9 +108,24 @@ namespace Clypsalot
         return this != &rhs;
     }
 
+    const std::string& Port::name() const noexcept
+    {
+        return m_name;
+    }
+
+    const PortType& Port::type() const noexcept
+    {
+        return m_type;
+    }
+
+    Object& Port::parent() const noexcept
+    {
+        return m_parent;
+    }
+
     const std::vector<PortLink*>& Port::links() const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         return portLinks;
     }
@@ -104,7 +134,7 @@ namespace Clypsalot
     // checking if the ports are linked only if the specific link is present.
     bool Port::hasLink(const PortLink* link_in) const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         for (const auto link : portLinks)
         {
@@ -119,17 +149,17 @@ namespace Clypsalot
 
     void Port::addLink(PortLink* link)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
-        if (parent.state() != ObjectState::paused) objectStateLinkError(parent.shared_from_this());
-        if (findLink(link->from, link->to)) throw DuplicateLinkError(link->from, link->to);
+        if (m_parent.state() != ObjectState::paused) objectStateLinkError(m_parent.shared_from_this());
+        if (findLink(link->from(), link->to())) throw DuplicateLinkError(link->from(), link->to());
 
         portLinks.push_back(link);
     }
 
     void Port::removeLink(const PortLink* link)
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         for (auto i = portLinks.begin(); i != portLinks.end();)
         {
@@ -152,11 +182,11 @@ namespace Clypsalot
 
     PortLink* Port::findLink(const OutputPort& from, const InputPort& to) const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         for (const auto link : portLinks)
         {
-            if (link->from == from && link->to == to)
+            if (link->from() == from && link->to() == to)
             {
                 return link;
             }
@@ -169,9 +199,9 @@ namespace Clypsalot
     {
         std::string retval;
 
-        retval += Clypsalot::toString(port.parent);
-        retval += "(output=" + port.type.name + ":";
-        retval += port.name + ")";
+        retval += Clypsalot::toString(port.m_parent);
+        retval += "(output=" + port.type().name() + ":";
+        retval += port.m_name + ")";
 
         return retval;
     }
@@ -182,7 +212,7 @@ namespace Clypsalot
 
     void OutputPort::setEndOfData() const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         for (const auto link : links())
         {
@@ -192,7 +222,7 @@ namespace Clypsalot
 
     PortLink* OutputPort::findLink(const InputPort& to) const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         return Port::findLink(*this, to);
     }
@@ -201,9 +231,9 @@ namespace Clypsalot
     {
         std::string retval;
 
-        retval += Clypsalot::toString(port.parent);
-        retval += "(input=" + port.type.name + ":";
-        retval += port.name + ")";
+        retval += Clypsalot::toString(port.m_parent);
+        retval += "(input=" + port.type().name() + ":";
+        retval += port.m_name + ")";
 
         return retval;
     }
@@ -214,14 +244,14 @@ namespace Clypsalot
 
     PortLink* InputPort::findLink(const OutputPort& from) const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         return Port::findLink(from, *this);
     }
 
     bool InputPort::endOfData() const noexcept
     {
-        assert(parent.haveLock());
+        assert(m_parent.haveLock());
 
         for (const auto link : links())
         {
@@ -233,8 +263,8 @@ namespace Clypsalot
 
     PortLink* linkPorts(OutputPort& output, InputPort& input)
     {
-        assert(output.parent.haveLock());
-        assert(input.parent.haveLock());
+        assert(output.parent().haveLock());
+        assert(input.parent().haveLock());
 
         LOGGER(debug, "Linking ", output, " to ", input);
 
@@ -251,8 +281,8 @@ namespace Clypsalot
             }
         });
 
-        auto outputObject = output.parent.shared_from_this();
-        auto inputObject = input.parent.shared_from_this();
+        auto outputObject = output.parent().shared_from_this();
+        auto inputObject = input.parent().shared_from_this();
 
         for (auto object : {outputObject, inputObject})
         {
@@ -265,7 +295,7 @@ namespace Clypsalot
         }
 
         try {
-            link = output.type.makeLink(output, input);
+            link = output.type().makeLink(output, input);
             output.addLink(link);
             input.addLink(link);
             return link;
@@ -294,7 +324,9 @@ namespace Clypsalot
             {
                 for (const auto& link : links)
                 {
-                    unlinkPorts(link->from, link->to);
+                    // FIXME Rename all unlinkPorts() to unlink() and add a version of the
+                    // function that takes a PortLink*
+                    unlinkPorts(link->from(), link->to());
                 }
             }
 
@@ -308,8 +340,8 @@ namespace Clypsalot
 
         for (const auto& ports : portList)
         {
-            auto fromParent = ports.first.parent.shared_from_this();
-            auto toParent = ports.second.parent.shared_from_this();
+            auto fromParent = ports.first.parent().shared_from_this();
+            auto toParent = ports.second.parent().shared_from_this();
 
             assert(fromParent->haveLock());
             assert(toParent->haveLock());
@@ -345,8 +377,8 @@ namespace Clypsalot
      */
     void unlinkPorts(OutputPort& output, InputPort& input)
     {
-        assert(output.parent.haveLock());
-        assert(input.parent.haveLock());
+        assert(output.parent().haveLock());
+        assert(input.parent().haveLock());
 
         LOGGER(debug, "Unlinking ", output, " from ", input);
 
@@ -363,8 +395,8 @@ namespace Clypsalot
             throw RuntimeError(makeString("Ports ", output, " and ", input, " are not linked"));
         }
 
-        assert(outputLink->from == output);
-        assert(outputLink->to == input);
+        assert(outputLink->from() == output);
+        assert(outputLink->to() == input);
 
         std::vector<SharedObject> startObjects;
         Finally finally([&startObjects]
@@ -376,7 +408,7 @@ namespace Clypsalot
             }
         });
 
-        for (auto object : { output.parent.shared_from_this(), input.parent.shared_from_this() })
+        for (auto object : { output.parent().shared_from_this(), input.parent().shared_from_this() })
         {
             if (! objectIsShutdown(object->state()) && pauseObject(object))
             {
@@ -417,8 +449,8 @@ namespace Clypsalot
 
         for (const auto& ports : portList)
         {
-            auto fromParent = ports.first.parent.shared_from_this();
-            auto toParent = ports.second.parent.shared_from_this();
+            auto fromParent = ports.first.parent().shared_from_this();
+            auto toParent = ports.second.parent().shared_from_this();
 
             assert(fromParent->haveLock());
             assert(toParent->haveLock());

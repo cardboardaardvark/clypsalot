@@ -23,29 +23,29 @@ using namespace std::placeholders;
 namespace Clypsalot
 {
     ManagedObject::ManagedObject(const SharedObject& object) :
-        object(object)
+        m_object(object)
     { }
 
     Network::Network()
     {
-        messages->registerHandler<ObjectShutdownEvent>(std::bind(&Network::handleObjectEvent, this, _1));
+        m_messages->registerHandler<ObjectShutdownEvent>(std::bind(&Network::handleObjectEvent, this, _1));
     }
 
     Network::~Network() noexcept
     {
-        messages = nullptr;
+        m_messages = nullptr;
 
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
         _stop();
     }
 
     bool Network::shouldStop() const noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        if (waitForShutdown.size() == 0) return false;
+        if (m_waitForShutdown.size() == 0) return false;
 
-        for (const auto& [object, waiting] : waitForShutdown)
+        for (const auto& [object, waiting] : m_waitForShutdown)
         {
             if (waiting) return false;
         }
@@ -55,7 +55,7 @@ namespace Clypsalot
 
     void Network::recordWaitForShutdown(const SharedObject& object, std::map<SharedObject, bool>& seenObjects) noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         std::unique_lock lock(*object);
         auto objectState = object->state();
@@ -63,13 +63,13 @@ namespace Clypsalot
 
         LOGGER(trace, "Recording if ", *object, " is stopped: ", object->state());
 
-        waitForShutdown[object] = ! objectIsShutdown(objectState);
+        m_waitForShutdown[object] = ! objectIsShutdown(objectState);
 
         for (const auto port : object->outputs())
         {
             for (const auto link : port->links())
             {
-                auto checkObject = link->to.parent.shared_from_this();
+                auto checkObject = link->to().parent().shared_from_this();
 
                 if (! seenObjects.contains(checkObject))
                 {
@@ -89,10 +89,10 @@ namespace Clypsalot
 
     void Network::handleObjectEvent(const ObjectShutdownEvent& event)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
         std::map<SharedObject, bool> seenObjects;
 
-        if (! running)
+        if (! m_running)
         {
             LOGGER(trace, "Skipping handling ObjectShutdownEvent because the network is not running");
             return;
@@ -111,11 +111,11 @@ namespace Clypsalot
 
     bool Network::_hasObject(const SharedObject& object)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for (const auto& managed : managedObjects)
+        for (const auto& managed : m_managedObjects)
         {
-            if (managed.object == object) return true;
+            if (managed.m_object == object) return true;
         }
 
         return false;
@@ -123,20 +123,20 @@ namespace Clypsalot
 
     void Network::_addObject(const SharedObject& object)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         if (_hasObject(object)) throw RuntimeError(makeString("Object is already registered with network: ", *object));
 
         ManagedObject managed(object);
 
-        managed.subscribe<ObjectShutdownEvent>(messages);
+        managed.subscribe<ObjectShutdownEvent>(m_messages);
 
-        managedObjects.push_back(managed);
+        m_managedObjects.push_back(managed);
     }
 
     SharedObject Network::makeObject(const std::string& kind)
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
 
         auto object = objectCatalog().make(kind);
         _addObject(object);
@@ -145,59 +145,59 @@ namespace Clypsalot
 
     void Network::_start()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        if (running) return;
+        if (m_running) return;
 
-        for (const auto& managed : managedObjects)
+        for (const auto& managed : m_managedObjects)
         {
-            std::scoped_lock objectLock(*managed.object);
-            startObject(managed.object);
+            std::scoped_lock objectLock(*managed.m_object);
+            startObject(managed.m_object);
         }
 
-        running = true;
-        condVar.notify_all();
+        m_running = true;
+        m_condVar.notify_all();
     }
 
     void Network::start()
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
         _start();
     }
 
     void Network::run()
     {
-        std::unique_lock lock(mutex);
+        std::unique_lock lock(m_mutex);
 
         _start();
 
-        condVar.wait(lock, [this]
+        m_condVar.wait(lock, [this]
         {
-            if (! running) return true;
+            if (! m_running) return true;
             return false;
         });
     }
 
     void Network::_stop()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        if (! running) return;
+        if (! m_running) return;
 
-        for (const auto& managed : managedObjects)
+        for (const auto& managed : m_managedObjects)
         {
-            LOGGER(trace, "Stopping object: ", *managed.object);
-            std::scoped_lock objectLock(*managed.object);
-            stopObject(managed.object);
+            LOGGER(trace, "Stopping object: ", *managed.m_object);
+            std::scoped_lock objectLock(*managed.m_object);
+            stopObject(managed.m_object);
         }
 
-        running = false;
-        condVar.notify_all();
+        m_running = false;
+        m_condVar.notify_all();
     }
 
     void Network::stop()
     {
-        std::scoped_lock lock(mutex);
+        std::scoped_lock lock(m_mutex);
         _stop();
     }
 }

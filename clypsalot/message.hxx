@@ -34,11 +34,12 @@ namespace Clypsalot
         using BaseHandler = std::function<void (const Message&)>;
 
         private:
-        std::condition_variable_any condVar;
-        bool receiving = true;
-        bool processing = false;
-        std::list<const Message *> queue;
-        std::map<std::type_index, BaseHandler> handlers;
+        std::condition_variable_any m_condVar;
+        bool m_receiving = true;
+        bool m_processing = false;
+        std::list<const Message *> m_queue;
+        std::map<std::type_index, BaseHandler> m_handlers;
+
         void _registerHandler(const std::type_info& type, BaseHandler handler);
         void process() noexcept;
 

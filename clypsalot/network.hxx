@@ -25,27 +25,27 @@ namespace Clypsalot
 {
     struct ManagedObject
     {
-        SharedObject object;
-        std::vector<std::shared_ptr<Subscription>> subscriptions;
+        SharedObject m_object;
+        std::vector<std::shared_ptr<Subscription>> m_subscriptions;
 
         ManagedObject(const SharedObject& object);
 
         template <std::derived_from<Event> T>
         std::shared_ptr<Subscription> subscribe(const std::shared_ptr<MessageProcessor>& messages)
         {
-            auto subscription = object->subscribe<T>(messages);
-            subscriptions.push_back(subscription);
+            auto subscription = m_object->subscribe<T>(messages);
+            m_subscriptions.push_back(subscription);
             return subscription;
         }
     };
 
     class Network : RecursiveLockable
     {
-        std::shared_ptr<MessageProcessor> messages = std::make_shared<MessageProcessor>();
-        std::condition_variable_any condVar;
-        std::vector<ManagedObject> managedObjects;
-        std::map <SharedObject, bool> waitForShutdown;
-        bool running = false;
+        std::shared_ptr<MessageProcessor> m_messages = std::make_shared<MessageProcessor>();
+        std::condition_variable_any m_condVar;
+        std::vector<ManagedObject> m_managedObjects;
+        std::map <SharedObject, bool> m_waitForShutdown;
+        bool m_running = false;
 
         void handleObjectEvent(const ObjectShutdownEvent& event);
         void recordWaitForShutdown(const SharedObject& object, std::map<SharedObject, bool>& seenObjects) noexcept;

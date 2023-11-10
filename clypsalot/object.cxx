@@ -56,16 +56,16 @@ namespace Clypsalot
 
     std::string Object::toString(const Object& object) noexcept
     {
-        return std::string("Object #") + std::to_string(object.id);
+        return std::string("Object #") + std::to_string(object.m_id);
     }
 
     Object::Object(const std::string& kind) :
-        id(nextObjectId++),
-        kind(kind)
+        m_id(nextObjectId++),
+        m_kind(kind)
     {
         OBJECT_LOGGER(debug, "Object is being constructed: ", kind);
-        std::scoped_lock lock(mutex);
-        events->add(objectEvents);
+        std::scoped_lock lock(m_mutex);
+        m_events->add(objectEvents);
     }
 
     /**
@@ -86,33 +86,43 @@ namespace Clypsalot
 
         // This should never happen as long as the Object is owned by a shared_ptr that was
         // constructed by the _makeObject<T>() function.
-        if (! objectIsShutdown(currentState))
+        if (! objectIsShutdown(m_state))
         {
            FATAL_ERROR(makeString("Attempt to destroy ", *this, " when it was not shutdown"));
         }
 
-        for (const auto output : outputPorts)
+        for (const auto output : m_outputPorts)
         {
             delete output;
         }
 
-        for (const auto input : inputPorts)
+        for (const auto input : m_inputPorts)
         {
             delete input;
         }
     }
 
+    Object::Id Object::id() const noexcept
+    {
+        return m_id;
+    }
+
+    const std::string& Object::kind() const noexcept
+    {
+        return m_kind;
+    }
+
     ObjectState Object::state() const noexcept
     {
-        assert(mutex.haveLock());
-        return currentState;
+        assert(m_mutex.haveLock());
+        return m_state;
     }
 
     void Object::state(const ObjectState newState)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        const auto oldState = currentState;
+        const auto oldState = m_state;
 
         OBJECT_LOGGER(trace, "state change requested: ", formatStateChange(oldState, newState));
 
@@ -122,16 +132,16 @@ namespace Clypsalot
             throw ObjectStateChangeError(shared_from_this(), oldState, newState);
         }
 
-        currentState = newState;
-        events->send(ObjectStateChangedEvent(shared_from_this(), oldState, currentState));
-        condVar.notify_all();
+        m_state = newState;
+        m_events->send(ObjectStateChangedEvent(shared_from_this(), oldState, m_state));
+        m_condVar.notify_all();
     }
 
     bool Object::endOfData() const noexcept
     {
         assert(haveLock());
 
-        for (const auto input : inputPorts)
+        for (const auto input : m_inputPorts)
         {
             if (input->endOfData()) return true;
         }
@@ -143,9 +153,9 @@ namespace Clypsalot
     {
         assert(haveLock());
 
-        OBJECT_LOGGER(trace, "Checking readiness; state=", currentState);
+        OBJECT_LOGGER(trace, "Checking readiness; state=", m_state);
 
-        if (currentState != ObjectState::waiting)
+        if (m_state != ObjectState::waiting)
         {
             OBJECT_LOGGER(trace, "Not ready because it is not waiting");
             return false;
@@ -153,7 +163,7 @@ namespace Clypsalot
 
         if (endOfData()) return true;
 
-        for (const auto port : inputPorts)
+        for (const auto port : m_inputPorts)
         {
             if (! port->ready())
             {
@@ -162,7 +172,7 @@ namespace Clypsalot
             }
         }
 
-        for (const auto port : outputPorts)
+        for (const auto port : m_outputPorts)
         {
             if (! port->ready())
             {
@@ -180,7 +190,7 @@ namespace Clypsalot
         assert(haveLock());
         std::vector<PortLink*> allLinks;
 
-        for (const auto port : outputPorts)
+        for (const auto port : m_outputPorts)
         {
             for (const auto link : port->links())
             {
@@ -188,7 +198,7 @@ namespace Clypsalot
             }
         }
 
-        for (const auto port : inputPorts)
+        for (const auto port : m_inputPorts)
         {
             for (const auto link : port->links())
             {
@@ -206,11 +216,11 @@ namespace Clypsalot
         std::map<SharedObject, bool> seenObjects;
         std::vector<SharedObject> linkedObjects;
 
-        for (const auto port : outputPorts)
+        for (const auto port : m_outputPorts)
         {
             for (const auto link : port->links())
             {
-                auto toParent = link->to.parent.shared_from_this();
+                auto toParent = link->to().parent().shared_from_this();
 
                 if (! seenObjects.contains(toParent))
                 {
@@ -220,11 +230,11 @@ namespace Clypsalot
             }
         }
 
-        for (const auto port : inputPorts)
+        for (const auto port : m_inputPorts)
         {
             for (const auto link : port->links())
             {
-                auto fromParent = link->from.parent.shared_from_this();
+                auto fromParent = link->from().parent().shared_from_this();
 
                 if (! seenObjects.contains(fromParent))
                 {
@@ -241,14 +251,14 @@ namespace Clypsalot
     {
         assert(haveLock());
 
-        condVar.wait(mutex, tester);
+        m_condVar.wait(m_mutex, tester);
     }
 
     void Object::fault(const std::string& message) noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        if (currentState == ObjectState::faulted)
+        if (m_state == ObjectState::faulted)
         {
             OBJECT_LOGGER(debug, "fault() called for object that is already faulted");
             return;
@@ -256,34 +266,33 @@ namespace Clypsalot
 
         // Explicitly set the state to ensure the object always winds up in the faulted
         // state so if something goes wrong in here at least the state will be correct.
-        currentState = ObjectState::faulted;
+        m_state = ObjectState::faulted;
 
         try {
             OBJECT_LOGGER(error, "Faulted: ", message);
             // Still call the state change method so the normal state change workflow happens
             state(ObjectState::faulted);
-            events->send(ObjectFaultedEvent(shared_from_this(), message));
+            m_events->send(ObjectFaultedEvent(shared_from_this(), message));
             shutdown();
         } catch (std::exception& e)
         {
-            OBJECT_LOGGER(error, "Exception encountered in fault handler: ", e.what());
-            throw;
+            FATAL_ERROR(makeString("Exception encountered in fault handler: ", e.what()));
         }
         catch (...)
         {
-            OBJECT_LOGGER(error, "Unknown exception in fault handler");
+            FATAL_ERROR("Unknown exception in fault handler");
         }
     }
 
     void Object::init(const ObjectConfig& config)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         OBJECT_LOGGER(trace, "Initializing");
 
         try
         {
-            if (currentState != ObjectState::initializing)
+            if (m_state != ObjectState::initializing)
             {
                 objectStateError(shared_from_this());
             }
@@ -304,24 +313,24 @@ namespace Clypsalot
 
     void Object::handleInit(const ObjectConfig&)
     {
-        assert(mutex.haveLock());
-        assert(currentState == ObjectState::initializing);
+        assert(m_mutex.haveLock());
+        assert(m_state == ObjectState::initializing);
     }
 
     void Object::configure(const ObjectConfig& config)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         OBJECT_LOGGER(trace, "Configuring");
 
         try
         {
-            if (currentState == ObjectState::initializing)
+            if (m_state == ObjectState::initializing)
             {
                 init(config);
             }
 
-            if (currentState != ObjectState::configuring)
+            if (m_state != ObjectState::configuring)
             {
                 objectStateError(shared_from_this());
             }
@@ -342,8 +351,8 @@ namespace Clypsalot
 
     void Object::handleConfigure(const ObjectConfig& config)
     {
-        assert(mutex.haveLock());
-        assert(currentState == ObjectState::configuring);
+        assert(m_mutex.haveLock());
+        assert(m_state == ObjectState::configuring);
 
         for (const auto& [name, value] : config)
         {
@@ -354,9 +363,9 @@ namespace Clypsalot
 
     void Object::handleEndOfData() noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for (const auto port : outputPorts)
+        for (const auto port : m_outputPorts)
         {
             port->setEndOfData();
         }
@@ -370,12 +379,12 @@ namespace Clypsalot
 
         OBJECT_LOGGER(debug, "Adding property: ", config.name);
 
-        if (! objectIsPreparing(currentState))
+        if (! objectIsPreparing(m_state))
         {
             objectStateError(shared_from_this());
         }
 
-        const auto& [iterator, result] = objectProperties.try_emplace(
+        const auto& [iterator, result] = m_properties.try_emplace(
             config.name,
             *this,
             config.name,
@@ -406,40 +415,40 @@ namespace Clypsalot
 
     bool Object::hasProperty(const std::string& name) const noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        return objectProperties.contains(name);
+        return m_properties.contains(name);
     }
 
     Property& Object::property(const std::string& name)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        if (! objectProperties.contains(name))
+        if (! m_properties.contains(name))
         {
             throw KeyError(makeString("Unknown property name: ", name), name);
         }
 
-        return objectProperties.at(name);
+        return m_properties.at(name);
     }
 
     const std::map<std::string, Property>& Object::properties() const noexcept
     {
         assert(haveLock());
 
-        return objectProperties;
+        return m_properties;
     }
 
     size_t& Object::propertySizeRef(const std::string& name)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         return property(name).sizeRef();
     }
 
     void Object::start()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         try
         {
@@ -458,7 +467,7 @@ namespace Clypsalot
 
     void Object::schedule()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         try
         {
@@ -516,11 +525,13 @@ namespace Clypsalot
         {
             FATAL_ERROR("Unknown exception");
         }
+
+        FATAL_ERROR("Should never reach this point");
     }
 
     void Object::pause()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         try
         {
@@ -539,14 +550,14 @@ namespace Clypsalot
 
     void Object::stop()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         OBJECT_LOGGER(debug, "Stopping");
 
         try
         {
             state(ObjectState::stopped);
-            events->send(ObjectStoppedEvent(shared_from_this()));
+            m_events->send(ObjectStoppedEvent(shared_from_this()));
             shutdown();
         }
         catch (std::exception& e)
@@ -562,19 +573,19 @@ namespace Clypsalot
 
     void Object::shutdown()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         try
         {
             OBJECT_LOGGER(trace, "Shutting down");
 
-            if (! objectIsShutdown(currentState))
+            if (! objectIsShutdown(m_state))
             {
                 OBJECT_LOGGER(error, "Attempt to shutdown object that was not in a shutdown state: ", *this);
                 objectStateError(shared_from_this());
             }
 
-            events->send(ObjectShutdownEvent(shared_from_this()));
+            m_events->send(ObjectShutdownEvent(shared_from_this()));
         }
         catch (std::exception& e)
         {
@@ -591,16 +602,16 @@ namespace Clypsalot
     {
         assert(haveLock());
 
-        return outputPorts;
+        return m_outputPorts;
     }
 
     bool Object::hasOutput(const std::string& name) noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for (const auto& output : outputPorts)
+        for (const auto& output : m_outputPorts)
         {
-            if (output->name == name)
+            if (output->name() == name)
             {
                 return true;
             }
@@ -611,11 +622,11 @@ namespace Clypsalot
 
     OutputPort& Object::output(const std::string& name)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for(auto& output : outputPorts)
+        for(auto& output : m_outputPorts)
         {
-            if (output->name == name)
+            if (output->name() == name)
             {
                 return *output;
             }
@@ -626,13 +637,13 @@ namespace Clypsalot
 
     std::vector<std::string> Object::addOutputTypes()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         std::vector<std::string> types;
 
-        types.reserve(userOutputPortTypes.size());
+        types.reserve(m_userOutputPortTypes.size());
 
-        for (const auto& [name, _] : userOutputPortTypes)
+        for (const auto& [name, _] : m_userOutputPortTypes)
         {
             types.push_back(name);
         }
@@ -642,11 +653,11 @@ namespace Clypsalot
 
     OutputPort& Object::addOutput(const std::string& type, const std::string& name)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         OutputPort* output = nullptr;
 
-        if (! userOutputPortTypes.contains(type))
+        if (! m_userOutputPortTypes.contains(type))
         {
             throw TypeError(makeString("Object does not support output type: ", type));
         }
@@ -666,38 +677,38 @@ namespace Clypsalot
 
     OutputPort& Object::addOutput(OutputPort* output)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        OBJECT_LOGGER(trace, "Adding output: ", output->name, "=", output->type.name);
+        OBJECT_LOGGER(trace, "Adding output: ", output->name(), "=", output->type().name());
 
-        if (! objectIsPreparing(currentState))
+        if (! objectIsPreparing(m_state))
         {
             objectStateError(shared_from_this());
         }
 
-        if (hasOutput(output->name))
+        if (hasOutput(output->name()))
         {
-            throw KeyError(makeString("Duplicate output port name: ", output->name), output->name);
+            throw KeyError(makeString("Duplicate output port name: ", output->name()), output->name());
         }
 
-        outputPorts.push_back(output);
+        m_outputPorts.push_back(output);
         return *output;
     }
 
     const std::vector<InputPort*>& Object::inputs() const noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        return inputPorts;
+        return m_inputPorts;
     }
 
     bool Object::hasInput(const std::string& name) noexcept
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for (const auto& input : inputPorts)
+        for (const auto& input : m_inputPorts)
         {
-            if (input->name == name)
+            if (input->name() == name)
             {
                 return true;
             }
@@ -708,11 +719,11 @@ namespace Clypsalot
 
     InputPort& Object::input(const std::string& name)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        for(auto& input : inputPorts)
+        for(auto& input : m_inputPorts)
         {
-            if (input->name == name)
+            if (input->name() == name)
             {
                 return *input;
             }
@@ -723,13 +734,13 @@ namespace Clypsalot
 
     std::vector<std::string> Object::addInputTypes()
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         std::vector<std::string> types;
 
-        types.reserve(userInputPortTypes.size());
+        types.reserve(m_userInputPortTypes.size());
 
-        for (const auto& [name, _] : userInputPortTypes)
+        for (const auto& [name, _] : m_userInputPortTypes)
         {
             types.push_back(name);
         }
@@ -739,11 +750,11 @@ namespace Clypsalot
 
     InputPort& Object::addInput(const std::string& type, const std::string& name)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
         InputPort* input = nullptr;
 
-        if (! userInputPortTypes.contains(type))
+        if (! m_userInputPortTypes.contains(type))
         {
             throw TypeError(makeString("Object does not support input type: ", type));
         }
@@ -763,21 +774,21 @@ namespace Clypsalot
 
     InputPort& Object::addInput(InputPort* input)
     {
-        assert(mutex.haveLock());
+        assert(m_mutex.haveLock());
 
-        if (! objectIsPreparing(currentState))
+        if (! objectIsPreparing(m_state))
         {
             objectStateError(shared_from_this());
         }
 
-        OBJECT_LOGGER(trace, "Adding input: ", input->name, "=", input->type.name);
+        OBJECT_LOGGER(trace, "Adding input: ", input->name(), "=", input->type().name());
 
-        if (hasInput(input->name))
+        if (hasInput(input->name()))
         {
-            throw KeyError(makeString("Duplicate input port name: ", input->name), input->name);
+            throw KeyError(makeString("Duplicate input port name: ", input->name()), input->name());
         }
 
-        inputPorts.push_back(input);
+        m_inputPorts.push_back(input);
         return *input;
     }
 
@@ -1003,6 +1014,9 @@ namespace Clypsalot
                     case ObjectState::stopped: return true;
                     case ObjectState::waiting: return true;
                 }
+
+                break;
+
             case ObjectState::faulted: return false;
             case ObjectState::initializing: if (newState == ObjectState::configuring || objectIsShutdown(newState)) return true; return false;
             case ObjectState::paused:
@@ -1017,6 +1031,9 @@ namespace Clypsalot
                     case ObjectState::stopped: return true;
                     case ObjectState::waiting: return true;
                 }
+
+                break;
+
             case ObjectState::scheduled: if (newState == ObjectState::executing) return true; return false;
             case ObjectState::stopped:
                 switch (newState)
@@ -1031,6 +1048,8 @@ namespace Clypsalot
                     case ObjectState::waiting: return false;
                 }
 
+                break;
+
             case ObjectState::waiting:
                 switch (newState)
                 {
@@ -1043,6 +1062,8 @@ namespace Clypsalot
                     case ObjectState::stopped: return false;
                     case ObjectState::waiting: return false;
                 }
+
+                break;
         }
 
         FATAL_ERROR(makeString("Unhandled state transition validation: ", formatStateChange(oldState, newState)));

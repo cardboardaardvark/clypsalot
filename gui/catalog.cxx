@@ -29,11 +29,11 @@ CatalogEntryItem::CatalogEntryItem(QTreeWidgetItem* parent, const QString& title
 
 CatalogObjectItem::CatalogObjectItem(QTreeWidgetItem* parent, const Clypsalot::ObjectDescriptor& descriptor) :
     CatalogEntryItem(parent, QString::fromStdString(descriptor.kind), catalogObjectItemType),
-    descriptor(descriptor)
+    m_descriptor(descriptor)
 { }
 
 CatalogMimeData::CatalogMimeData(const CatalogEntryItem* const entry, const QString& title) :
-    entry(entry)
+    m_entry(entry)
 {
     setText(title);
     setData(catalogEntryMimeFormat, "");
@@ -42,10 +42,10 @@ CatalogMimeData::CatalogMimeData(const CatalogEntryItem* const entry, const QStr
 Catalog::Catalog(QWidget* parent) :
     QTreeWidget(parent)
 {
-    catalogObjects = makeTopLevelItem("Objects");
-    catalogPlugins = makeTopLevelItem("Plugins");
+    m_catalogObjects = makeTopLevelItem("Objects");
+    m_catalogPlugins = makeTopLevelItem("Plugins");
 
-    subscriptions.push_back(Clypsalot::objectCatalog().subscribe<Clypsalot::ObjectCatalogEntryAddedEvent>(std::bind(&Catalog::handleEvent, this, _1)));
+    m_subscriptions.push_back(Clypsalot::objectCatalog().subscribe<Clypsalot::ObjectCatalogEntryAddedEvent>(std::bind(&Catalog::handleEvent, this, _1)));
     connect(this, SIGNAL(catalogEntryAdded(const Clypsalot::ObjectDescriptor*)), this, SLOT(addObject(const Clypsalot::ObjectDescriptor*)));
 }
 
@@ -76,7 +76,7 @@ QTreeWidgetItem* Catalog::makeTopLevelItem(const QString& title)
 
 void Catalog::addObject(const Clypsalot::ObjectDescriptor* descriptor)
 {
-    if (catalogObjects->isHidden()) catalogObjects->setHidden(false);
+    if (m_catalogObjects->isHidden()) m_catalogObjects->setHidden(false);
 
-    new CatalogObjectItem(catalogObjects, *descriptor);
+    new CatalogObjectItem(m_catalogObjects, *descriptor);
 }

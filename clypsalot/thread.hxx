@@ -41,11 +41,11 @@ namespace Clypsalot
     {
         friend class Lockable;
 
-        std::recursive_mutex guardedMutex;
-        mutable std::mutex metaMutex;
-        std::thread::id lockedBy;
-        size_t lockCounter = 0;
-        const bool recurseOk;
+        std::recursive_mutex m_guardedMutex;
+        mutable std::mutex m_metaMutex;
+        std::thread::id m_lockedBy;
+        size_t m_lockCounter = 0;
+        const bool m_recurseOk;
 
         bool _haveLock() const;
         bool _locked() const;
@@ -83,7 +83,7 @@ namespace Clypsalot
     {
         protected:
         /// @brief The mutex used for the object.
-        mutable Mutex mutex;
+        mutable Mutex m_mutex;
 
         Lockable(const bool recurseOk);
 
@@ -124,10 +124,10 @@ namespace Clypsalot
     /// @brief The SharedMutex version of DebugMutex.
     class SharedDebugMutex
     {
-        std::shared_mutex guardedMutex;
-        mutable std::mutex metaMutex;
-        std::thread::id lockedBy;
-        std::map<std::thread::id, bool> sharedBy;
+        std::shared_mutex m_guardedMutex;
+        mutable std::mutex m_metaMutex;
+        std::thread::id m_lockedBy;
+        std::map<std::thread::id, bool> m_sharedBy;
 
         bool _locked() const;
         bool _haveLock() const;
@@ -164,7 +164,7 @@ namespace Clypsalot
     {
         protected:
         /// @brief The mutex used for the object.
-        SharedMutex mutex;
+        SharedMutex m_mutex;
 
         public:
         SharedLockable() = default;
@@ -196,14 +196,14 @@ namespace Clypsalot
         using JobType = std::function<void ()>;
 
         private:
-        thread_local static bool insideQueueFlag;
+        thread_local static bool m_insideQueueFlag;
 
-        size_t numThreads = 0;
-        std::condition_variable_any condVar;
-        std::condition_variable_any workerCondVar;
-        std::vector<std::thread> workers;
-        std::vector<std::thread::id> joinQueue;
-        std::list<JobType> jobs;
+        size_t m_numThreads = 0;
+        std::condition_variable_any m_condVar;
+        std::condition_variable_any m_workerCondVar;
+        std::vector<std::thread> m_workers;
+        std::vector<std::thread::id> m_joinQueue;
+        std::list<JobType> m_jobs;
 
         void adjustThreads();
         void worker();
@@ -221,7 +221,7 @@ namespace Clypsalot
         template <typename T>
         T call(const std::function<T ()>& procedure)
         {
-            assert(! insideQueueFlag);
+            assert(! m_insideQueueFlag);
 
             std::promise<T> promise;
 
@@ -240,12 +240,14 @@ namespace Clypsalot
             return promise.get_future().get();
         }
 
-        template <>
-        void call(const std::function<void ()>& procedure)
+        // See GCC bug 85282 for why this uses std::same_as
+        // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=85282
+        template <std::same_as<void> T>
+        void call(const std::function<T ()>& procedure)
         {
-            assert(! insideQueueFlag);
+            assert(! m_insideQueueFlag);
 
-            std::promise<void> promise;
+            std::promise<T> promise;
 
             post([&promise, &procedure]
             {
