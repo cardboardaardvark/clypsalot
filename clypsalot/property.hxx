@@ -31,16 +31,6 @@ namespace Clypsalot
         string
     };
 
-    struct PropertyConfig
-    {
-        const std::string name;
-        const PropertyType type;
-        const bool configurable;
-        const bool required;
-        const bool publicMutable;
-        const std::any initial;
-    };
-
     class Property
     {
         friend Object;
@@ -52,6 +42,15 @@ namespace Clypsalot
         using RealType = float;
         using SizeType = size_t;
         using StringType = std::string;
+        using Flags = uint_fast8_t;
+
+        enum FlagValues : Flags
+        {
+            NoFlags = 0,
+            Configurable = 1 << 0,
+            Required = 1 << 1,
+            PublicMutable = 1 << 2,
+        };
 
         private:
         union Container
@@ -66,13 +65,16 @@ namespace Clypsalot
 
         const Lockable& m_parent;
         Container m_container;
+        const std::string m_name;
+        const PropertyType m_type;
+        const Flags m_flags;
         bool m_hasValue = false;
 
         protected:
-        void set(const std::any& value);
-        bool defined(const bool defined);
+        void set(const std::any& in_value);
+        void defined(const bool in_defined);
         void enforcePublicMutable() const;
-        void enforceType(const PropertyType enforceType) const;
+        void enforceType(const PropertyType in_enforceType) const;
         void enforceDefined() const;
         BooleanType& booleanRef();
         FileType& fileRef();
@@ -82,34 +84,40 @@ namespace Clypsalot
         StringType& stringRef();
 
         public:
-        const std::string m_name;
-        const PropertyType m_type;
-        const bool m_configurable;
-        const bool m_required;
-        const bool m_publicMutable;
-
-        Property(const Lockable& parent, const std::string& name, const PropertyType type, const bool configurable, const bool required, const bool publicMutable, const std::any& initial = nullptr);
+        Property(const Lockable& in_parent, const PropertyConfig& in_config);
         Property(const Property&) = delete;
         ~Property();
         void operator=(const Property&) = delete;
-        bool defined() const;
+        const std::string& name() const noexcept;
+        PropertyType type() const noexcept;
+        Flags flags() const noexcept;
+        bool hasFlag(const Flags in_flags) const noexcept;
+        bool defined() const noexcept;
         std::string valueToString() const;
         BooleanType booleanValue() const;
-        void booleanValue(const BooleanType value);
+        void booleanValue(const BooleanType in_value);
         FileType fileValue() const;
-        void fileValue(const FileType& value);
+        void fileValue(const FileType& in_value);
         IntegerType integerValue() const;
-        void integerValue(const IntegerType value);
+        void integerValue(const IntegerType in_value);
         RealType realValue() const;
-        void realValue(const RealType value);
+        void realValue(const RealType in_value);
         SizeType sizeValue() const;
-        void sizeValue(const SizeType value);
+        void sizeValue(const SizeType in_value);
         StringType stringValue() const;
-        void stringValue(const StringType& value);
+        void stringValue(const StringType& in_value);
         std::any anyValue() const;
-        void anyValue(const std::any& value);
+        void anyValue(const std::any& in_value);
     };
 
-    std::string toString(const PropertyType type) noexcept;
-    std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept;
+    struct PropertyConfig
+    {
+        const std::string name;
+        const PropertyType type;
+        const Property::Flags flags;
+        const std::any initial;
+    };
+
+    std::string toString(const PropertyType in_type) noexcept;
+    std::ostream& operator<<(std::ostream& in_os, const PropertyType& in_rhs) noexcept;
 }

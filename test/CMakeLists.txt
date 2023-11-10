@@ -22,6 +22,7 @@ add_clypsalot_test(unit util)
 add_clypsalot_test(unit logging)
 add_clypsalot_test(unit thread)
 add_clypsalot_test(unit message)
+add_clypsalot_test(unit property)
 add_clypsalot_test(unit object)
 add_clypsalot_test(unit port)
 

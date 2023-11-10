@@ -212,10 +212,14 @@ void CreateObjectDialog::initObject()
 
     for (const auto& [name, property] : m_object->properties())
     {
-        if (! property.m_configurable) continue;
+        if (! property.hasFlag(Clypsalot::Property::Configurable)) continue;
 
         LOGGER(trace, "Adding property for editing: ", name);
-        editor->addProperty(QString::fromStdString(name), property.m_type, property.m_required, property.anyValue());
+        editor->addProperty(
+                    QString::fromStdString(name),
+                    property.type(),
+                    property.hasFlag(Clypsalot::Property::Required),
+                    property.anyValue());
     }
 }
 

@@ -26,8 +26,8 @@ namespace Clypsalot
     static const std::string processCounterPropertyName = "Process Counter";
     static const std::string maxProcessPropertyName = "Max Process";
     static const PropertyList processingProperties = {
-        { processCounterPropertyName, PropertyType::size, false, false, false, 0 },
-        { maxProcessPropertyName, PropertyType::size, true, false, true, nullptr },
+        { processCounterPropertyName, PropertyType::size, Property::NoFlags, 0 },
+        { maxProcessPropertyName, PropertyType::size, Property::Configurable | Property::PublicMutable, nullptr },
     };
 
     std::shared_ptr<TestObject> TestObject::make()

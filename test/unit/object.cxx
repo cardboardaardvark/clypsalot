@@ -23,8 +23,8 @@ using namespace Clypsalot;
 TEST_MAIN_FUNCTION
 
 static PropertyList propertyList = {
-    { "property 1", PropertyType::boolean, true, true, true, nullptr },
-    { "property 2", PropertyType::string, false, false, false, "initial value" },
+    { "noFlags", PropertyType::boolean, Property::NoFlags, nullptr },
+    { "publicMutable", PropertyType::string, Property::PublicMutable, "initial value" },
 };
 
 TEST_CASE(Object_properties)
@@ -45,11 +45,9 @@ TEST_CASE(Object_properties)
         auto& property = object->property(config.name);
 
         BOOST_CHECK(object->hasProperty(config.name));
-        BOOST_CHECK(property.m_name == config.name);
-        BOOST_CHECK(property.m_type == config.type);
-        BOOST_CHECK(property.m_configurable == config.configurable);
-        BOOST_CHECK(property.m_required == config.required);
-        BOOST_CHECK(property.m_publicMutable == config.publicMutable);
+        BOOST_CHECK(property.name() == config.name);
+        BOOST_CHECK(property.type() == config.type);
+        BOOST_CHECK(property.flags() == config.flags);
         BOOST_CHECK(property.defined() != (config.initial.type() == typeid(nullptr)));
 
         numChecked++;

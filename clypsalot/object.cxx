@@ -384,16 +384,7 @@ namespace Clypsalot
             objectStateError(shared_from_this());
         }
 
-        const auto& [iterator, result] = m_properties.try_emplace(
-            config.name,
-            *this,
-            config.name,
-            config.type,
-            config.configurable,
-            config.required,
-            config.publicMutable,
-            config.initial
-        );
+        const auto& [iterator, result] = m_properties.try_emplace(config.name, *this, config);
 
         if (! result)
         {

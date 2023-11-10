@@ -20,23 +20,13 @@
 
 namespace Clypsalot
 {
-    Property::Property(
-            const Lockable& parent,
-            const std::string& name,
-            const PropertyType type,
-            const bool configurable,
-            const bool required,
-            const bool publicMutable,
-            const std::any& initial
-        ) :
-            m_parent(parent),
-            m_name(name),
-            m_type(type),
-            m_configurable(configurable),
-            m_required(required),
-            m_publicMutable(publicMutable)
+    Property::Property(const Lockable& in_parent, const PropertyConfig& in_config) :
+        m_parent(in_parent),
+        m_name(in_config.name),
+        m_type(in_config.type),
+        m_flags(in_config.flags)
     {
-        switch (type)
+        switch (in_config.type)
         {
             case PropertyType::boolean: m_container.boolean = false; break;
             case PropertyType::file: m_container.file = new std::filesystem::path; break;
@@ -46,9 +36,9 @@ namespace Clypsalot
             case PropertyType::string: m_container.string = new std::string; break;
         }
 
-        if (initial.type() != typeid(nullptr))
+        if (in_config.initial.type() != typeid(nullptr))
         {
-            set(initial);
+            set(in_config.initial);
         }
     }
 
@@ -64,34 +54,52 @@ namespace Clypsalot
         }
     }
 
-    bool Property::defined(const bool defined)
+    const std::string& Property::name() const noexcept
+    {
+        return m_name;
+    }
+
+    PropertyType Property::type() const noexcept
+    {
+        return m_type;
+    }
+
+    Property::Flags Property::flags() const noexcept
+    {
+        return m_flags;
+    }
+
+    bool Property::hasFlag(const Property::Flags in_flags) const noexcept
+    {
+        return m_flags & in_flags;
+    }
+
+    void Property::defined(const bool in_defined)
     {
         assert(m_parent.haveLock());
 
-        m_hasValue = defined;
+        m_hasValue = in_defined;
+    }
+
+    bool Property::defined() const noexcept
+    {
+        assert(m_parent.haveLock());
 
         return m_hasValue;
     }
 
-    bool Property::defined() const
-    {
-        assert(m_parent.haveLock());
-
-        return m_hasValue;
-    }
-
-    void Property::set(const std::any& value)
+    void Property::set(const std::any& in_value)
     {
         assert(m_parent.haveLock());
 
         switch (m_type)
         {
-            case PropertyType::boolean: m_container.boolean = anyToBool(value); break;
-            case PropertyType::file: *m_container.file = anyToPath(value); break;
-            case PropertyType::integer: m_container.integer = anyToInt(value); break;
-            case PropertyType::real: m_container.real = anyToFloat(value); break;
-            case PropertyType::size: m_container.size = anyToSize(value); break;
-            case PropertyType::string: *m_container.string = anyToString(value); break;
+            case PropertyType::boolean: m_container.boolean = anyToBool(in_value); break;
+            case PropertyType::file: *m_container.file = anyToPath(in_value); break;
+            case PropertyType::integer: m_container.integer = anyToInt(in_value); break;
+            case PropertyType::real: m_container.real = anyToFloat(in_value); break;
+            case PropertyType::size: m_container.size = anyToSize(in_value); break;
+            case PropertyType::string: *m_container.string = anyToString(in_value); break;
         }
 
         m_hasValue = true;
@@ -99,12 +107,12 @@ namespace Clypsalot
 
     void Property::enforcePublicMutable() const
     {
-        if (! m_publicMutable) throw ImmutableError(makeString("Property ", m_name, " is not mutable"));
+        if (! (m_flags & PublicMutable)) throw ImmutableError(makeString("Property ", m_name, " is not mutable"));
     }
 
-    void Property::enforceType(const PropertyType enforceType) const
+    void Property::enforceType(const PropertyType in_enforceType) const
     {
-        if (m_type != enforceType) throw TypeError(makeString("Property ", m_name, " is not of ", enforceType, " type"));
+        if (m_type != in_enforceType) throw TypeError(makeString("Property ", m_name, " is not of ", in_enforceType, " type"));
     }
 
     void Property::enforceDefined() const
@@ -148,13 +156,13 @@ namespace Clypsalot
         return m_container.boolean;
     }
 
-    void Property::booleanValue(const BooleanType value)
+    void Property::booleanValue(const BooleanType in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        booleanRef() = value;
+        booleanRef() = in_value;
         m_hasValue = true;
     }
 
@@ -177,13 +185,13 @@ namespace Clypsalot
         return *m_container.file;
     }
 
-    void Property::fileValue(const FileType& value)
+    void Property::fileValue(const FileType& in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        fileRef() = value;
+        fileRef() = in_value;
         m_hasValue = true;
     }
 
@@ -206,13 +214,13 @@ namespace Clypsalot
         return m_container.integer;
     }
 
-    void Property::integerValue(const IntegerType value)
+    void Property::integerValue(const IntegerType in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        integerRef() = value;
+        integerRef() = in_value;
         m_hasValue = true;
     }
 
@@ -235,13 +243,13 @@ namespace Clypsalot
         return m_container.real;
     }
 
-    void Property::realValue(const RealType value)
+    void Property::realValue(const RealType in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        realRef() = value;
+        realRef() = in_value;
         m_hasValue = true;
     }
 
@@ -264,13 +272,13 @@ namespace Clypsalot
         return m_container.size;
     }
 
-    void Property::sizeValue(const SizeType value)
+    void Property::sizeValue(const SizeType in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        sizeRef() = value;
+        sizeRef() = in_value;
         m_hasValue = true;
     }
 
@@ -293,13 +301,13 @@ namespace Clypsalot
         return *m_container.string;
     }
 
-    void Property::stringValue(const StringType& value)
+    void Property::stringValue(const StringType& in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        stringRef() = value;
+        stringRef() = in_value;
         m_hasValue = true;
     }
 
@@ -320,18 +328,18 @@ namespace Clypsalot
         FATAL_ERROR(makeString("Unhandled PropertyType value: ", m_type));
     }
 
-    void Property::anyValue(const std::any& value)
+    void Property::anyValue(const std::any& in_value)
     {
         assert(m_parent.haveLock());
 
         enforcePublicMutable();
 
-        set(value);
+        set(in_value);
     }
 
-    std::string toString(const PropertyType type) noexcept
+    std::string toString(const PropertyType in_type) noexcept
     {
-        switch (type)
+        switch (in_type)
         {
             case PropertyType::boolean: return "boolean";
             case PropertyType::file: return "file";
@@ -341,12 +349,12 @@ namespace Clypsalot
             case PropertyType::string: return "string";
         }
 
-        FATAL_ERROR(makeString("Unhandled PropertyType value: ", type));
+        FATAL_ERROR(makeString("Unhandled PropertyType value: ", static_cast<int>(in_type)));
     }
 
-    std::ostream& operator<<(std::ostream& os, const PropertyType& type) noexcept
+    std::ostream& operator<<(std::ostream& in_os, const PropertyType& in_rhs) noexcept
     {
-        os << toString(type);
-        return os;
+        in_os << toString(in_rhs);
+        return in_os;
     }
 }
