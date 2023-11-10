@@ -1,0 +1,39 @@
+#!/bin/bash
+
+set -e
+set -x
+set -u
+
+PROJECT_ROOT="$(realpath $(dirname $0)/..)"
+VALIDATE_ROOT="$1"
+COMPILERS="clang++-16 clang++-17 g++"
+TARGETS="validate clypsalot-gui"
+
+function error() {
+    echo "$*" >&2
+    exit 1
+}
+
+if [ "${VALIDATE_ROOT}" == "" ]; then
+    error "Must specify a directory"
+fi
+
+if ! [ -d "${VALIDATE_ROOT}" ]; then
+    error "${VALIDATE_ROOT} is not a directory"
+fi
+
+for COMPILER in ${COMPILERS}; do
+    VALIDATE_DIR="${VALIDATE_ROOT}/${COMPILER}"
+
+    if [ -e "${VALIDATE_DIR}" ]; then
+        error "${VALIDATE_DIR} is in the way"
+    fi
+
+    mkdir "${VALIDATE_DIR}"
+    cd "${VALIDATE_DIR}"
+
+    (
+        CXX="${COMPILER}" cmake -GNinja "${PROJECT_ROOT}"
+        nice cmake --build . -t ${TARGETS}
+    )
+done

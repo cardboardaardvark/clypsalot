@@ -15,6 +15,13 @@ under Debian Bookworm GNU/Linux using Clang version 17. Project goals include be
 with the GCC and Microsoft Visual C++ compilers as well as additionally targetting at least the
 FreeBSD and Windows operating systems.
 
+There are C++20 features in use that do not work correctly in Clang until version 16. The following
+compiler versions are known to have worked at one point or another:
+
+* Clang 16.0.6
+* Clang 17.0.4
+* GCC 12.2.0
+
 The following are hard dependencies for compiling and the Debian packages that provide them
 
 * Boost Core, libboost-dev
@@ -37,6 +44,6 @@ To build and run the software tests:
 
     cmake --build . -t validate
 
-To generate the documentation:
+To generate the (very incomplete) documentation:
 
     cmake --build . -t doc
