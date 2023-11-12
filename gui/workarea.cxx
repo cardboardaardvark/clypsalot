@@ -10,7 +10,10 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <QApplication>
 #include <QGraphicsSceneDragDropEvent>
+
+#include <clypsalot/object.hxx>
 
 #include "createobjectdialog.hxx"
 #include "logger.hxx"
@@ -20,11 +23,38 @@
 
 WorkAreaWidget::WorkAreaWidget(QGraphicsItem* parent) :
     QGraphicsWidget(parent)
-{ }
+{
+    if (scene() == nullptr)
+    {
+        MainWindow::instance()->workArea()->scene()->addItem(this);
+    }
+
+    m_borderColor = palette().color(QPalette::Active, QPalette::WindowText);
+}
 
 void WorkAreaWidget::paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *)
 {
     paintBorder(painter);
+}
+
+void WorkAreaWidget::paintBorder(QPainter* painter)
+{
+    assert(m_borderWidth >= 0);
+
+    if (m_borderWidth == 0) return;
+
+    auto pen = painter->pen();
+    pen.setStyle(m_borderStyle);
+    pen.setWidth(m_borderWidth);
+    pen.setColor(m_borderColor);
+    painter->setPen(pen);
+
+    auto rect = boundingRect();
+    rect.setX(m_borderWidth * .5);
+    rect.setY(m_borderWidth * .5);
+    rect.setWidth(rect.width() - m_borderWidth * .5);
+    rect.setHeight(rect.height() - m_borderWidth * .5);
+    painter->drawRect(rect);
 }
 
 qreal WorkAreaWidget::borderWidth()
@@ -38,28 +68,22 @@ void WorkAreaWidget::setBorderWidth(const qreal borderWidth)
     update();
 }
 
-void WorkAreaWidget::paintBorder(QPainter* painter)
+QColor WorkAreaWidget::borderColor()
 {
-    assert(m_borderWidth >= 0);
-
-    if (m_borderWidth == 0) return;
-
-    auto pen = painter->pen();
-    pen.setStyle(Qt::SolidLine);
-    pen.setWidth(m_borderWidth);
-    painter->setPen(pen);
-
-    auto rect = boundingRect();
-    rect.setX(m_borderWidth);
-    rect.setY(m_borderWidth);
-    rect.setWidth(rect.width() - m_borderWidth);
-    rect.setHeight(rect.height() - m_borderWidth);
-    painter->drawRect(rect);
+    return m_borderColor;
 }
 
-void WorkAreaWidget::updateSelected(const bool selected)
+void WorkAreaWidget::setBorderColor(const QColor& in_color)
 {
-    LOGGER(debug, "Selected=", selected);
+    m_borderColor = in_color;
+
+    update();
+}
+
+void WorkAreaWidget::setBorderStyle(const Qt::PenStyle in_style)
+{
+    m_borderStyle = in_style;
+    update();
 }
 
 QVariant WorkAreaWidget::itemChange(GraphicsItemChange change, const QVariant &value)
@@ -73,6 +97,8 @@ WorkAreaLabelWidget::WorkAreaLabelWidget(const QString& text, QGraphicsItem* par
     WorkAreaWidget(parent),
     m_textItem(this)
 {
+    m_textItem.setBrush(palette().color(QPalette::Active, QPalette::WindowText));
+
     if (text != "") setText(text);
 }
 
@@ -90,9 +116,73 @@ void WorkAreaLabelWidget::setText(const QString& text)
     setMaximumSize(textSize);
 }
 
+WorkAreaLineWidget::WorkAreaLineWidget(const QLineF& in_line, QGraphicsItem* in_parent) :
+    WorkAreaWidget(in_parent)
+{
+    m_line = new QGraphicsLineItem(in_line, this);
+
+    auto color = palette().color(QPalette::Active, QPalette::WindowText);
+    auto pen = m_line->pen();
+    pen.setWidth(4);
+    pen.setColor(color);
+    m_line->setPen(pen);
+
+    setZValue(1);
+    setInvalid(false);
+}
+
+QRectF WorkAreaLineWidget::boundingRect() const
+{
+    LOGGER(trace, "line boundingRect() called");
+    return m_line->boundingRect();
+}
+
+QPainterPath WorkAreaLineWidget::shape() const
+{
+    LOGGER(trace, "line shape() called");
+    return m_line->shape();
+}
+
+void WorkAreaLineWidget::setLine(const QLineF& in_line)
+{
+    m_line->setLine(in_line);
+}
+
+void WorkAreaLineWidget::setStyle(const Qt::PenStyle in_style)
+{
+    auto pen = m_line->pen();
+    pen.setStyle(in_style);
+    m_line->setPen(pen);
+}
+
+void WorkAreaLineWidget::setInvalid(const bool in_invalid)
+{
+    auto pen = m_line->pen();
+
+    if (in_invalid) pen.setDashPattern({4, 4});
+    else pen.setStyle(Qt::SolidLine);
+
+    m_line->setPen(pen);
+}
+
+void WorkAreaLineWidget::setColor(const QColor& in_color)
+{
+    auto pen = m_line->pen();
+    pen.setColor(in_color);
+    m_line->setPen(pen);
+}
+
 WorkAreaScene::WorkAreaScene(QObject* parent) :
     QGraphicsScene(parent)
-{ }
+{
+    const auto backgroundColor = Qt::black;
+    auto newPalette = palette();
+
+    setBackgroundBrush(backgroundColor);
+    newPalette.setColor(QPalette::Active, QPalette::Window, backgroundColor);
+
+    setPalette(newPalette);
+}
 
 void WorkAreaScene::dragEnterEvent(QGraphicsSceneDragDropEvent* event)
 {
@@ -136,49 +226,25 @@ void WorkAreaScene::catalogObjectDrop(const CatalogObjectItem* const item, const
 
     if (! dialog.exec()) return;
 
-    auto& descriptor = item->m_descriptor;
+    auto object = dialog.object();
     auto outputs = dialog.outputs();
     auto inputs = dialog.inputs();
     auto config = dialog.config();
-    auto object = new Object(makeObject(descriptor, outputs, inputs, config));
 
-    object->setPos(position);
-    addItem(object);
+    {
+        std::scoped_lock lock(*object);
+        initObject(object, outputs, inputs, config);
+    }
+
+    auto uiObject = new Object(object);
+    uiObject->setPos(position);
 }
 
-WorkAreaConnectionLine::WorkAreaConnectionLine(const QLineF& line, QGraphicsItem* parent) :
-    QGraphicsLineItem(line, parent)
-{
-    auto ourPen = pen();
-    ourPen.setWidth(2);
-    setPen(ourPen);
-
-    setZValue(1);
-    setInvalid(false);
-}
-
-void WorkAreaConnectionLine::setInvalid(const bool invalid)
-{
-    auto newPen = pen();
-
-    if (invalid) newPen.setDashPattern({4, 4});
-    else newPen.setStyle(Qt::SolidLine);
-
-    setPen(newPen);
-}
-
-WorkArea::WorkArea(QWidget *parent) :
-    QGraphicsView(parent),
-    m_scene(new WorkAreaScene(this))
-{
-    setScene(m_scene);
-}
-
-QList<Object*> WorkArea::objects()
+QList<Object*> WorkAreaScene::objects()
 {
     QList<Object*> retval;
 
-    for(auto item : m_scene->items())
+    for(auto item : items())
     {
         auto object = dynamic_cast<Object*>(item);
         if (object == nullptr) continue;
@@ -188,40 +254,67 @@ QList<Object*> WorkArea::objects()
     return retval;
 }
 
-void WorkArea::startConnectionDrag()
+QList<Object*> WorkAreaScene::selectedObjects()
 {
-    LOGGER(trace, "Starting connection drag");
+    QList<Object*> retval;
 
-    assert(m_connectionDragLine == nullptr);
+    for (auto item : selectedItems())
+    {
+        if (static_cast<WorkAreaItemType>(item->type()) != WorkAreaItemType::object) continue;
 
-    m_connectionDragLine = new WorkAreaConnectionLine();
-    m_scene->addItem(m_connectionDragLine);
+        auto object = dynamic_cast<Object*>(item);
+        assert(object != nullptr);
+        retval.push_back(object);
+    }
+
+    return retval;
 }
 
-void WorkArea::updateConnectionDrag(const QPointF& start, const QPointF& end, const bool invalid)
+WorkArea::WorkArea(QWidget *parent) :
+    QGraphicsView(parent),
+    m_scene(new WorkAreaScene(this))
 {
-    LOGGER(trace, "Updating connection drag");
+    setScene(m_scene);
+}
 
-    assert(m_connectionDragLine != nullptr);
+void WorkArea::startConnectionDrag()
+{
+    assert(! m_connectionDragLine);
 
-    m_connectionDragLine->setLine({start, end});
-    m_connectionDragLine->setInvalid(invalid);
+    m_connectionDragLine = std::make_unique<WorkAreaLineWidget>();
+}
+
+void WorkArea::updateConnectionDrag(const QPointF& in_start, const QPointF& in_end, const QColor& in_color, const bool in_invalid)
+{
+    assert(m_connectionDragLine);
+
+    m_connectionDragLine->setLine({in_start, in_end});
+    m_connectionDragLine->setInvalid(in_invalid);
+    m_connectionDragLine->setColor(in_color);
 }
 
 void WorkArea::resetConnectionDrag()
 {
-    LOGGER(trace, "Reseting connection drag");
+    assert(m_connectionDragLine);
 
-    assert(m_connectionDragLine != nullptr);
-
-    m_scene->removeItem(m_connectionDragLine);
-    delete m_connectionDragLine;
     m_connectionDragLine = nullptr;
+}
+
+void WorkArea::selectAll()
+{
+    for (auto item : m_scene->items())
+    {
+        if (item->flags() & QGraphicsItem::ItemIsSelectable)
+        {
+            LOGGER(debug, "Selected item");
+            item->setSelected(true);
+        }
+    }
 }
 
 void WorkArea::startObjects()
 {
-    for (auto object : objects())
+    for (auto object : m_scene->selectedObjects())
     {
         object->start();
     }
@@ -229,7 +322,7 @@ void WorkArea::startObjects()
 
 void WorkArea::pauseObjects()
 {
-    for (auto object : objects())
+    for (auto object : m_scene->selectedObjects())
     {
         object->pause();
     }
@@ -237,8 +330,29 @@ void WorkArea::pauseObjects()
 
 void WorkArea::stopObjects()
 {
-    for (auto object : objects())
+    for (auto object : m_scene->selectedObjects())
     {
         object->stop();
+    }
+}
+
+void WorkArea::removeSelected()
+{
+    for (auto item : m_scene->selectedItems())
+    {
+        if (static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::connection)
+        {
+            LOGGER(debug, "Deleting connection");
+            delete item;
+        }
+    }
+
+    for (auto item : m_scene->selectedItems())
+    {
+        if (static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::object)
+        {
+            LOGGER(debug, "Deleting object");
+            delete item;
+        }
     }
 }

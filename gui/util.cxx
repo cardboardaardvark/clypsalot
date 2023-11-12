@@ -10,6 +10,8 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <cassert>
+
 #include <clypsalot/object.hxx>
 #include <clypsalot/module.hxx>
 
@@ -27,49 +29,58 @@ void openWindow(QWidget* window)
     window->raise();
 }
 
-Clypsalot::SharedObject makeObject(
-    const Clypsalot::ObjectDescriptor& descriptor,
-    const std::vector<std::pair<QString, QString>>& outputs,
-        const std::vector<std::pair<QString, QString>>& inputs,
-    const Clypsalot::ObjectConfig& config
+void initObject(
+    const Clypsalot::SharedObject& in_object,
+    const std::vector<std::pair<QString, QString>>& in_outputs,
+    const std::vector<std::pair<QString, QString>>& in_inputs,
+    const Clypsalot::ObjectConfig& in_config
 ) {
-    auto object = descriptor.make();
-    std::scoped_lock lock(*object);
+    assert(in_object->haveLock());
 
-    for (const auto& [type, name] : outputs) object->addOutput(type.toStdString(), name.toStdString());
-    for (const auto& [type, name] : inputs) object->addInput(type.toStdString(), name.toStdString());
+    for (const auto& [type, name] : in_outputs) in_object->addOutput(type.toStdString(), name.toStdString());
+    for (const auto& [type, name] : in_inputs) in_object->addInput(type.toStdString(), name.toStdString());
 
-    object->configure(config);
-
-    return object;
+    in_object->configure(in_config);
 }
 
-std::ostream& operator<<(std::ostream& os, const QPoint& point) noexcept
+std::ostream& operator<<(std::ostream& in_os, const QPoint& in_rhs) noexcept
 {
-    os << point.x() << "x" << point.y();
-    return os;
+    in_os << in_rhs.x() << "x" << in_rhs.y();
+    return in_os;
 }
 
-std::ostream& operator<<(std::ostream& os, const QPointF& point) noexcept
+std::ostream& operator<<(std::ostream& in_os, const QPointF& in_rhs) noexcept
 {
-    os << point.x() << "x" << point.y();
-    return os;
+    in_os << in_rhs.x() << "x" << in_rhs.y();
+    return in_os;
 }
 
-std::ostream& operator<<(std::ostream& os, const QSize& size) noexcept
+std::ostream& operator<<(std::ostream& in_os, const QRect& in_rhs) noexcept
 {
-    os << size.width() << "x" << size.height();
-    return os;
+    in_os << "QRect(" << in_rhs.x() << ", " << in_rhs.y() << ", " << in_rhs.width() << ", " << in_rhs.height() << ")";
+    return in_os;
 }
 
-std::ostream& operator<<(std::ostream& os, const QSizeF& size) noexcept
+std::ostream& operator<<(std::ostream& in_os, const QRectF& in_rhs) noexcept
 {
-    os << size.width() << "x" << size.height();
-    return os;
+    in_os << "QRectF(" << in_rhs.x() << ", " << in_rhs.y() << ", " << in_rhs.width() << ", " << in_rhs.height() << ")";
+    return in_os;
 }
 
-std::ostream& operator<<(std::ostream& os, const QString& string) noexcept
+std::ostream& operator<<(std::ostream& in_os, const QSize& in_rhs) noexcept
 {
-    os << string.toStdString();
-    return os;
+    in_os << in_rhs.width() << "x" << in_rhs.height();
+    return in_os;
+}
+
+std::ostream& operator<<(std::ostream& in_os, const QSizeF& in_rhs) noexcept
+{
+    in_os << in_rhs.width() << "x" << in_rhs.height();
+    return in_os;
+}
+
+std::ostream& operator<<(std::ostream& in_os, const QString& in_rhs) noexcept
+{
+    in_os << in_rhs.toStdString();
+    return in_os;
 }

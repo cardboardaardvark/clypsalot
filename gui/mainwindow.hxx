@@ -13,6 +13,7 @@
 #pragma once
 
 #include <QMainWindow>
+#include <QPushButton>
 #include <QScrollArea>
 #include <QUndoView>
 
@@ -26,9 +27,10 @@ class MainWindow : public QMainWindow
 {
     Q_OBJECT
 
-    Ui::MainWindow* ui = nullptr;
+    Ui::MainWindow* m_ui = nullptr;
 
     bool shouldQuit();
+    std::initializer_list<QPushButton*> selectionDependentButtons();
 
     protected:
     virtual void closeEvent(QCloseEvent* event) override;
@@ -47,4 +49,5 @@ class MainWindow : public QMainWindow
     public Q_SLOTS:
     void loadModules();
     void showLogWindow();
+    void workAreaSelectionChanged();
 };

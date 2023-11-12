@@ -17,6 +17,7 @@
 #include <QGraphicsGridLayout>
 #include <QGraphicsLinearLayout>
 #include <QGraphicsObject>
+#include <QPointer>
 
 #include <clypsalot/forward.hxx>
 
@@ -28,16 +29,22 @@ class ObjectPort : public WorkAreaWidget
     Q_OBJECT
 
     WorkAreaLabelWidget* m_nameLabel = nullptr;
+
+    protected:
     QList<PortConnection*> m_connections;
 
     public:
     Object* const m_parentObject;
 
-    ObjectPort(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
-    const QString name();
+    ObjectPort(Object* const in_parentObject, const QString& in_name, QGraphicsItem* in_parent = nullptr);
+    ~ObjectPort();
+    QString name();
+    const QList<PortConnection*>& connections() const;
     virtual QPointF connectPos() = 0;
-    void addConnection(PortConnection* connection);
-    void updateConnectionPositions();
+    Object* parentObject() const;
+    void addConnection(PortConnection* in_connection);
+    void removeConnection(PortConnection* in_connection);
+    void updateConnections();
 };
 
 class ObjectInput : public ObjectPort
@@ -65,17 +72,31 @@ class ObjectOutput : public ObjectPort
     void createConnection(ObjectInput* to);
 };
 
-class PortConnection : QGraphicsWidget
+class PortConnection : public WorkAreaWidget
 {
     Q_OBJECT
 
-    ObjectOutput* const m_from;
-    ObjectInput* const m_to;
-    WorkAreaConnectionLine m_line;
+    ObjectOutput* const m_from = nullptr;
+    ObjectInput* const m_to = nullptr;
+    WorkAreaLineWidget* m_line = nullptr;
+
+    void link();
+    void unlink();
+
+    protected Q_SLOTS:
+    void updateSelected(const bool in_selected);
 
     public:
+    static QColor colorForStates(const Clypsalot::ObjectState in_fromState, const Clypsalot::ObjectState in_toState);
     PortConnection(ObjectOutput* const from, ObjectInput* const to, QGraphicsObject* parent = nullptr);
-    void updatePosition();
+    ~PortConnection() noexcept;
+    QPainterPath shape() const override;
+    QRectF boundingRect() const override;
+    void setLineStyle(const Qt::PenStyle in_style);
+    int type() const override;
+    ObjectOutput* from() const;
+    ObjectInput* to() const;
+    void update();
 };
 
 class ObjectInfo : public WorkAreaWidget
@@ -99,27 +120,39 @@ class Object : public WorkAreaWidget
 {
     Q_OBJECT
 
+    const Clypsalot::SharedObject m_object;
+    Clypsalot::ObjectState m_state;
     ObjectInfo* m_info;
     std::map<QString, WorkAreaLabelWidget*> m_propertyValues;
+    QList<ObjectOutput*> m_outputs;
+    QList<ObjectInput*> m_inputs;
     std::vector<std::shared_ptr<Clypsalot::Subscription>> m_subscriptions;
     std::atomic_bool m_checkObjectSignalNeeded = ATOMIC_VAR_INIT(true);
 
+    QList<Object*> objectCollisions() const noexcept;
+    void ensureOnTop() noexcept;
+
     protected:
+    void mousePressEvent(QGraphicsSceneMouseEvent* in_event) noexcept override;
+    void contextMenuEvent(QGraphicsSceneContextMenuEvent* in_event) override;
     void handleEvent(const Clypsalot::ObjectStateChangedEvent& event);
     void initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayout* outputsLayout, QGraphicsGridLayout* propertiesLayout);
     QVariant itemChange(const GraphicsItemChange change, const QVariant& value) override;
-    void updatePortConnectionPositions();
+    void updatePortConnections();
 
     Q_SIGNALS:
     void checkObject();
 
     protected Q_SLOTS:
+    void updateSelected(const bool in_selected);
     void updateObject();
 
     public:
-    const Clypsalot::SharedObject m_object;
-
     Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent = nullptr);
+    ~Object();
+    int type() const override;
+    const Clypsalot::SharedObject& object();
+    Clypsalot::ObjectState state() const;
 
     public Q_SLOTS:
     void start();

@@ -41,6 +41,7 @@ static const QString windowLogLevelArg("window-log-level");
 void initMetaTypes();
 static void parseCommandLine(QCommandLineParser& parser, const QApplication& application);
 static void shutdown();
+QPalette darkTheme();
 
 int main(int argc, char *argv[])
 {
@@ -59,6 +60,7 @@ int main(int argc, char *argv[])
     LOGGER(info, "Clypsalot GUI version ", CLYPSALOT_GUI_VERSION, " starting");
     LOGGER(info, "Using Clypsalot version ", version());
 
+    application.setPalette(darkTheme());
     initMetaTypes();
     initThreadQueue(args.value(threadsArg).toUInt());
 
@@ -179,4 +181,26 @@ static void parseCommandLine(QCommandLineParser& parser, const QApplication& app
     validateLogSeverity(parser.value(logLevelArg));
 
     if (parser.isSet(windowLogLevelArg)) validateLogSeverity(parser.value(windowLogLevelArg));
+}
+
+QPalette darkTheme()
+{
+    QPalette palette;
+
+    // Originally from https://stackoverflow.com/a/56851493
+    palette.setColor(QPalette::Window, QColor(53, 53, 53));
+    palette.setColor(QPalette::WindowText, Qt::white);
+    palette.setColor(QPalette::Base, QColor(25, 25, 25));
+    palette.setColor(QPalette::AlternateBase, QColor(53, 53, 53));
+    palette.setColor(QPalette::ToolTipBase, Qt::black);
+    palette.setColor(QPalette::ToolTipText, Qt::white);
+    palette.setColor(QPalette::Text, Qt::white);
+    palette.setColor(QPalette::Button, QColor(53, 53, 53));
+    palette.setColor(QPalette::ButtonText, Qt::white);
+    palette.setColor(QPalette::BrightText, Qt::red);
+    palette.setColor(QPalette::Link, QColor(42, 130, 218));
+    palette.setColor(QPalette::Highlight, QColor(42, 130, 218));
+    palette.setColor(QPalette::HighlightedText, Qt::black);
+
+    return palette;
 }

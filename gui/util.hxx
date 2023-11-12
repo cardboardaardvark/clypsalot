@@ -23,20 +23,22 @@
 
 QSpacerItem* makeSpacer();
 void openWindow(QWidget* window);
-Clypsalot::SharedObject makeObject(
-    const Clypsalot::ObjectDescriptor& descriptor,
-    const std::vector<std::pair<QString, QString>>& outputs,
-    const std::vector<std::pair<QString, QString>>& inputs,
-    const Clypsalot::ObjectConfig& config
+void initObject(
+    const Clypsalot::SharedObject& in_object,
+    const std::vector<std::pair<QString, QString>>& in_outputs,
+    const std::vector<std::pair<QString, QString>>& in_inputs,
+    const Clypsalot::ObjectConfig& in_config
 );
 
-std::ostream& operator<<(std::ostream& os, const QPoint& point) noexcept;
-std::ostream& operator<<(std::ostream& os, const QPointF& point) noexcept;
-std::ostream& operator<<(std::ostream& os, const QSize& size) noexcept;
-std::ostream& operator<<(std::ostream& os, const QSizeF& size) noexcept;
-std::ostream& operator<<(std::ostream& os, const QString& string) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QPoint& in_rhs) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QPointF& in_rhs) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QRect& in_rhs) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QRectF& in_rhs) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QSize& in_rhs) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QSizeF& in_rhs) noexcept;
+std::ostream& operator<<(std::ostream& in_os, const QString& in_rhs) noexcept;
 
 template <typename... Args>
-QString makeQString(const Args&... args) noexcept {
-    return QString::fromStdString(Clypsalot::makeString(args...));
+QString makeQString(const Args&... in_args) noexcept {
+    return QString::fromStdString(Clypsalot::makeString(in_args...));
 }

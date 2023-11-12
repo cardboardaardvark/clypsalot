@@ -248,9 +248,10 @@ namespace Clypsalot
         return std::shared_ptr<T>(new T(args...), _destroyObject<T>);
     }
 
-    bool objectIsShutdown(const ObjectState state) noexcept;
-    bool objectIsBusy(const ObjectState state) noexcept;
-    bool objectIsPreparing(const ObjectState state) noexcept;
+    bool objectIsShutdown(const ObjectState in_state) noexcept;
+    bool objectIsBusy(const ObjectState in_state) noexcept;
+    bool objectIsPreparing(const ObjectState in_state) noexcept;
+    bool objectIsActive(const ObjectState in_state) noexcept;
     bool pauseObject(const SharedObject& object);
     bool startObject(const SharedObject& object);
     void scheduleObject(const SharedObject object);

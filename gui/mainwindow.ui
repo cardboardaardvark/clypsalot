@@ -22,6 +22,9 @@
       </property>
       <item>
        <widget class="QPushButton" name="startButton">
+        <property name="toolTip">
+         <string>Start selected objects.</string>
+        </property>
         <property name="text">
          <string>Start</string>
         </property>
@@ -29,6 +32,9 @@
       </item>
       <item>
        <widget class="QPushButton" name="pauseButton">
+        <property name="toolTip">
+         <string>Pause selected objects.</string>
+        </property>
         <property name="text">
          <string>Pause</string>
         </property>
@@ -36,8 +42,28 @@
       </item>
       <item>
        <widget class="QPushButton" name="stopButton">
+        <property name="toolTip">
+         <string>Stop selected objects.</string>
+        </property>
         <property name="text">
          <string>Stop</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="Line" name="line">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="removeButton">
+        <property name="toolTip">
+         <string>Remove selected objects.</string>
+        </property>
+        <property name="text">
+         <string>Remove</string>
         </property>
        </widget>
       </item>
@@ -136,8 +162,25 @@
        <property name="horizontalScrollBarPolicy">
         <enum>Qt::ScrollBarAlwaysOn</enum>
        </property>
+       <property name="sceneRect">
+        <rectf>
+         <x>0.000000000000000</x>
+         <y>0.000000000000000</y>
+         <width>5000.000000000000000</width>
+         <height>5000.000000000000000</height>
+        </rectf>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignTop</set>
+       </property>
+       <property name="renderHints">
+        <set>QPainter::Antialiasing|QPainter::TextAntialiasing</set>
+       </property>
        <property name="dragMode">
         <enum>QGraphicsView::RubberBandDrag</enum>
+       </property>
+       <property name="rubberBandSelectionMode">
+        <enum>Qt::ContainsItemShape</enum>
        </property>
       </widget>
      </widget>
@@ -165,7 +208,14 @@
     </property>
     <addaction name="actionLogMessages"/>
    </widget>
+   <widget class="QMenu" name="menuEdit">
+    <property name="title">
+     <string>Edit</string>
+    </property>
+    <addaction name="actionSelectAll"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
    <addaction name="menuWindow"/>
   </widget>
   <widget class="QStatusBar" name="statusBar"/>
@@ -206,6 +256,14 @@
     <string>Redraw</string>
    </property>
   </action>
+  <action name="actionSelectAll">
+   <property name="text">
+    <string>Select All</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -221,6 +279,8 @@
     <slot>startObjects()</slot>
     <slot>pauseObjects()</slot>
     <slot>stopObjects()</slot>
+    <slot>removeSelected()</slot>
+    <slot>selectAll()</slot>
    </slots>
   </customwidget>
  </customwidgets>
@@ -299,6 +359,38 @@
     <hint type="sourcelabel">
      <x>221</x>
      <y>44</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>742</x>
+     <y>336</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>removeButton</sender>
+   <signal>clicked()</signal>
+   <receiver>workArea</receiver>
+   <slot>removeSelected()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>316</x>
+     <y>44</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>742</x>
+     <y>336</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionSelectAll</sender>
+   <signal>triggered()</signal>
+   <receiver>workArea</receiver>
+   <slot>selectAll()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
     </hint>
     <hint type="destinationlabel">
      <x>742</x>

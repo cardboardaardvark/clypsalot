@@ -72,20 +72,6 @@
             <height>308</height>
            </rect>
           </property>
-          <layout class="QGridLayout" name="gridLayout">
-           <property name="leftMargin">
-            <number>0</number>
-           </property>
-           <property name="topMargin">
-            <number>0</number>
-           </property>
-           <property name="rightMargin">
-            <number>0</number>
-           </property>
-           <property name="bottomMargin">
-            <number>0</number>
-           </property>
-          </layout>
          </widget>
         </widget>
        </item>
@@ -100,7 +86,6 @@
       <attribute name="title">
        <string>Outputs</string>
       </attribute>
-      <layout class="QVBoxLayout" name="verticalLayout_2"/>
      </widget>
     </widget>
    </item>

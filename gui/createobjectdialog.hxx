@@ -41,20 +41,20 @@ class PortEditor : public QWidget
 
     QLineEdit* makePortNameInput();
     QComboBox* makePortTypeInput();
-    QPushButton* makePortButton(const QString& text, const bool enabled);
+    QPushButton* makePortButton(const QString& in_text, const bool in_enabled);
     QPushButton* makeRemovePortButton();
     QTableWidget* makePortTable();
-    bool tableHasName(const QString& name);
-    void addPort(const QString& name, const QString& type);
+    bool tableHasName(const QString& in_name);
+    void addPort(const QString& in_name, const QString& in_type);
 
     protected Q_SLOTS:
-    void portNameInputChanged(const QString& currentText);
+    void portNameInputChanged(const QString& in_currentText);
     void addPortClicked();
     void removePortClicked();
 
     public:
-    explicit PortEditor(QWidget* parent = nullptr);
-    void addType(const QString& name);
+    explicit PortEditor(QWidget* in_parent = nullptr);
+    void addType(const QString& in_name);
     std::vector<std::pair<QString, QString>> ports();
 };
 
@@ -63,6 +63,7 @@ class CreateObjectDialog : public QDialog
     Q_OBJECT
 
     Ui::CreateObjectDialog* m_ui;
+    Clypsalot::SharedObject m_object;
     std::vector<std::string> m_outputTypes;
     std::vector<std::string> m_inputTypes;
 
@@ -75,10 +76,10 @@ class CreateObjectDialog : public QDialog
 
     public:
     const Clypsalot::ObjectDescriptor& m_descriptor;
-    const Clypsalot::SharedObject m_object;
 
-    CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor);
+    CreateObjectDialog(QWidget* in_parent, const Clypsalot::ObjectDescriptor& in_descriptor);
     ~CreateObjectDialog();
+    Clypsalot::SharedObject object();
     Clypsalot::ObjectConfig config();
     std::vector<std::pair<QString, QString>> outputs();
     std::vector<std::pair<QString, QString>> inputs();

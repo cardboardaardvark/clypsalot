@@ -25,6 +25,8 @@
 enum class WorkAreaItemType : int
 {
     inputPort = QGraphicsItem::UserType,
+    object,
+    connection,
 };
 
 class WorkAreaWidget : public QGraphicsWidget
@@ -32,14 +34,13 @@ class WorkAreaWidget : public QGraphicsWidget
     Q_OBJECT
 
     qreal m_borderWidth = 0;
+    QColor m_borderColor;
+    Qt::PenStyle m_borderStyle = Qt::SolidLine;
 
     protected:
     void paint(QPainter *painter, const QStyleOptionGraphicsItem *, QWidget *) override;
     void paintBorder(QPainter* painter);
     QVariant itemChange(GraphicsItemChange change, const QVariant &value) override;
-
-    protected Q_SLOTS:
-    void updateSelected(const bool selected);
 
     Q_SIGNALS:
     void selectedChanged(bool);
@@ -48,6 +49,9 @@ class WorkAreaWidget : public QGraphicsWidget
     explicit WorkAreaWidget(QGraphicsItem* parent = nullptr);
     qreal borderWidth();
     void setBorderWidth(const qreal borderWidth);
+    QColor borderColor();
+    void setBorderColor(const QColor& in_color);
+    void setBorderStyle(const Qt::PenStyle in_style);
 };
 
 class WorkAreaLabelWidget : public WorkAreaWidget
@@ -60,6 +64,20 @@ class WorkAreaLabelWidget : public WorkAreaWidget
     WorkAreaLabelWidget(const QString& text = "", QGraphicsItem* parent = nullptr);
     QString text();
     void setText(const QString& text);
+};
+
+class WorkAreaLineWidget : public WorkAreaWidget
+{
+    QGraphicsLineItem* m_line = nullptr;
+
+    public:
+    WorkAreaLineWidget(const QLineF& in_line = QLineF(), QGraphicsItem* in_parent = nullptr);
+    QPainterPath shape() const override;
+    QRectF boundingRect() const override;
+    void setLine(const QLineF& in_line);
+    void setStyle(const Qt::PenStyle in_style);
+    void setInvalid(const bool in_invalid);
+    void setColor(const QColor& in_color);
 };
 
 class WorkAreaScene : public QGraphicsScene
@@ -75,32 +93,28 @@ class WorkAreaScene : public QGraphicsScene
 
     public:
     WorkAreaScene(QObject* parent);
-};
-
-class WorkAreaConnectionLine : public QGraphicsLineItem
-{
-    public:
-    WorkAreaConnectionLine(const QLineF& line = QLineF(), QGraphicsItem* parent = nullptr);
-    void setInvalid(const bool invalid);
+    QList<Object*> selectedObjects();
+    QList<Object*> objects();
 };
 
 class WorkArea : public QGraphicsView
 {
     Q_OBJECT
 
-    WorkAreaConnectionLine* m_connectionDragLine = nullptr;
+    std::unique_ptr<WorkAreaLineWidget> m_connectionDragLine;
 
     public:
     WorkAreaScene* const m_scene;
 
     explicit WorkArea(QWidget* parent = nullptr);
-    QList<Object*> objects();
     void startConnectionDrag();
-    void updateConnectionDrag(const QPointF& start, const QPointF& end, const bool invalid);
+    void updateConnectionDrag(const QPointF& in_start, const QPointF& in_end, const QColor& in_color, const bool in_invalid);
     void resetConnectionDrag();
 
     public Q_SLOTS:
+    void selectAll();
     void startObjects();
     void pauseObjects();
     void stopObjects();
+    void removeSelected();
 };

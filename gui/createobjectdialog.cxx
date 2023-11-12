@@ -28,8 +28,8 @@ static const int inputsTabIndex = 2;
 static const int portTableTypeIndex = 0;
 static const int portTableNameIndex = 1;
 
-PortEditor::PortEditor(QWidget* parent) :
-    QWidget(parent)
+PortEditor::PortEditor(QWidget* in_parent) :
+    QWidget(in_parent)
 {
     m_mainLayout = new QVBoxLayout(this);
     m_topLayout = new QHBoxLayout();
@@ -59,9 +59,9 @@ QComboBox* PortEditor::makePortTypeInput()
     return input;
 }
 
-void PortEditor::addType(const QString& name)
+void PortEditor::addType(const QString& in_name)
 {
-    m_portTypeInput->addItem(name);
+    m_portTypeInput->addItem(in_name);
 }
 
 std::vector<std::pair<QString, QString>> PortEditor::ports()
@@ -81,10 +81,10 @@ std::vector<std::pair<QString, QString>> PortEditor::ports()
     return vector;
 }
 
-QPushButton* PortEditor::makePortButton(const QString& text, const bool enabled)
+QPushButton* PortEditor::makePortButton(const QString& in_text, const bool in_enabled)
 {
-    auto button = new QPushButton(text);
-    button->setEnabled(enabled);
+    auto button = new QPushButton(in_text);
+    button->setEnabled(in_enabled);
     return button;
 }
 
@@ -95,13 +95,13 @@ QLineEdit* PortEditor::makePortNameInput()
     return input;
 }
 
-void PortEditor::portNameInputChanged(const QString& currentText)
+void PortEditor::portNameInputChanged(const QString& in_currentText)
 {
-    auto text = currentText.trimmed();
+    auto text = in_currentText.trimmed();
     bool addPortButtonEnabled = true;
 
     if (tableHasName(text)) addPortButtonEnabled = false;
-    else if (currentText == "") addPortButtonEnabled = false;
+    else if (in_currentText == "") addPortButtonEnabled = false;
 
     m_addPortButton->setEnabled(addPortButtonEnabled);
 }
@@ -119,13 +119,13 @@ QTableWidget* PortEditor::makePortTable()
     return table;
 }
 
-bool PortEditor::tableHasName(const QString& name)
+bool PortEditor::tableHasName(const QString& in_name)
 {
     auto numRows = m_portTable->rowCount();
 
     for(int row = 0; row < numRows; row++)
     {
-        if (m_portTable->item(row, portTableNameIndex)->text() == name) return true;
+        if (m_portTable->item(row, portTableNameIndex)->text() == in_name) return true;
     }
 
     return false;
@@ -137,13 +137,13 @@ void PortEditor::addPortClicked()
     m_portNameInput->clear();
 }
 
-void PortEditor::addPort(const QString& name, const QString& type)
+void PortEditor::addPort(const QString& in_name, const QString& in_type)
 {
     auto row = m_portTable->rowCount();
 
     m_portTable->insertRow(row);
-    m_portTable->setItem(row, portTableTypeIndex, new QTableWidgetItem(type));
-    m_portTable->setItem(row, portTableNameIndex, new QTableWidgetItem(name));
+    m_portTable->setItem(row, portTableTypeIndex, new QTableWidgetItem(in_type));
+    m_portTable->setItem(row, portTableNameIndex, new QTableWidgetItem(in_name));
 }
 
 void PortEditor::removePortClicked()
@@ -155,18 +155,18 @@ void PortEditor::removePortClicked()
     m_portTable->removeRow(selectedRow);
 }
 
-CreateObjectDialog::CreateObjectDialog(QWidget* parent, const Clypsalot::ObjectDescriptor& descriptor) :
-    QDialog(parent),
+CreateObjectDialog::CreateObjectDialog(QWidget* in_parent, const Clypsalot::ObjectDescriptor& in_descriptor) :
+    QDialog(in_parent),
     m_ui(new Ui::CreateObjectDialog),
-    m_descriptor(descriptor),
-    m_object(descriptor.make())
+    m_object(in_descriptor.make()),
+    m_descriptor(in_descriptor)
 {
-    LOGGER(trace, "init CreateObjectDialog for ", descriptor.kind);
+    LOGGER(trace, "init CreateObjectDialog for ", in_descriptor.kind);
 
     setWindowModality(Qt::WindowModal);
 
     m_ui->setupUi(this);
-    m_ui->objectKindLabel->setText(QString::fromStdString(descriptor.kind));
+    m_ui->objectKindLabel->setText(QString::fromStdString(in_descriptor.kind));
     m_ui->createButton->setEnabled(false);
 
     connect(m_ui->objectProperties, &ObjectPropertiesEditor::ready, this, &CreateObjectDialog::editorReady);
@@ -216,10 +216,11 @@ void CreateObjectDialog::initObject()
 
         LOGGER(trace, "Adding property for editing: ", name);
         editor->addProperty(
-                    QString::fromStdString(name),
-                    property.type(),
-                    property.hasFlag(Clypsalot::Property::Required),
-                    property.anyValue());
+            QString::fromStdString(name),
+            property.type(),
+            property.hasFlag(Clypsalot::Property::Required),
+            property.anyValue()
+        );
     }
 }
 
@@ -255,6 +256,11 @@ void CreateObjectDialog::initTabs()
 void CreateObjectDialog::editorReady(const bool ready)
 {
     m_ui->createButton->setEnabled(ready);
+}
+
+Clypsalot::SharedObject CreateObjectDialog::object()
+{
+    return m_object;
 }
 
 Clypsalot::ObjectConfig CreateObjectDialog::config()

@@ -31,16 +31,19 @@ MainWindow* MainWindow::instance()
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
+    m_ui(new Ui::MainWindow)
 {
-    ui->setupUi(this);
+    m_ui->setupUi(this);
 
-    connect(this, SIGNAL(statusUpdate(const QString&)), ui->statusBar, SLOT(showMessage(const QString&)));
+    connect(this, SIGNAL(statusUpdate(const QString&)), m_ui->statusBar, SLOT(showMessage(const QString&)));
+
+    connect(m_ui->workArea->scene(), SIGNAL(selectionChanged()), this, SLOT(workAreaSelectionChanged()));
+    workAreaSelectionChanged();
 }
 
 MainWindow::~MainWindow()
 {
-    delete ui;
+    delete m_ui;
 }
 
 void MainWindow::closeEvent(QCloseEvent* event)
@@ -60,6 +63,18 @@ bool MainWindow::shouldQuit()
     return true;
 }
 
+std::initializer_list<QPushButton*> MainWindow::selectionDependentButtons()
+{
+    static const std::initializer_list<QPushButton*> list {
+        m_ui->startButton,
+        m_ui->pauseButton,
+        m_ui->stopButton,
+        m_ui->removeButton,
+    };
+
+    return list;
+}
+
 void MainWindow::loadModules()
 {
     Clypsalot::threadQueuePost([this]
@@ -75,9 +90,19 @@ void MainWindow::showLogWindow()
     openWindow(LogWindow::instance());
 }
 
+void MainWindow::workAreaSelectionChanged()
+{
+    auto buttonsEnabled = m_ui->workArea->scene()->selectedItems().size() > 0;
+
+    for (auto button : selectionDependentButtons())
+    {
+        button->setEnabled(buttonsEnabled);
+    }
+}
+
 WorkArea* MainWindow::workArea()
 {
-    return ui->workArea;
+    return m_ui->workArea;
 }
 
 void MainWindow::statusMessage(const QString& message)

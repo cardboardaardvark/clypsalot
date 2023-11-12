@@ -783,9 +783,9 @@ namespace Clypsalot
         return *input;
     }
 
-    bool objectIsShutdown(const ObjectState state) noexcept
+    bool objectIsShutdown(const ObjectState in_state) noexcept
     {
-        switch (state)
+        switch (in_state)
         {
             case ObjectState::configuring: return false;
             case ObjectState::executing: return false;
@@ -797,12 +797,12 @@ namespace Clypsalot
             case ObjectState::waiting: return false;
         }
 
-        FATAL_ERROR(makeString("Unhandled object state:", static_cast<int>(state)));
+        FATAL_ERROR(makeString("Unhandled object state: ", static_cast<int>(in_state)));
     }
 
-    bool objectIsBusy(const ObjectState state) noexcept
+    bool objectIsBusy(const ObjectState in_state) noexcept
     {
-        switch (state)
+        switch (in_state)
         {
             case ObjectState::configuring: return false;
             case ObjectState::executing: return true;
@@ -814,12 +814,12 @@ namespace Clypsalot
             case ObjectState::waiting: return false;
         }
 
-        FATAL_ERROR(makeString("Unhandled object state:", static_cast<int>(state)));
+        FATAL_ERROR(makeString("Unhandled object state: ", static_cast<int>(in_state)));
     }
 
-    bool objectIsPreparing(const ObjectState state) noexcept
+    bool objectIsPreparing(const ObjectState in_state) noexcept
     {
-        switch (state)
+        switch (in_state)
         {
             case ObjectState::configuring: return true;
             case ObjectState::executing: return false;
@@ -831,7 +831,24 @@ namespace Clypsalot
             case ObjectState::waiting: return false;
         }
 
-        FATAL_ERROR(makeString("Unhandled object state:", static_cast<int>(state)));
+        FATAL_ERROR(makeString("Unhandled object state: ", static_cast<int>(in_state)));
+    }
+
+    bool objectIsActive(const ObjectState in_state) noexcept
+    {
+        switch (in_state)
+        {
+            case ObjectState::configuring: return false;
+            case ObjectState::executing: return true;
+            case ObjectState::faulted: return false;
+            case ObjectState::initializing: return false;
+            case ObjectState::paused: return false;
+            case ObjectState::scheduled: return true;
+            case ObjectState::stopped: return false;
+            case ObjectState::waiting: return true;
+        }
+
+        FATAL_ERROR(makeString("Unhandled object state: ", static_cast<int>(in_state)));
     }
 
     /**
