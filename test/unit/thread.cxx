@@ -57,7 +57,7 @@ TEST_CASE(threadQueuePost_function)
     BOOST_CHECK(didRun);
 }
 
-TEST_CASE(THREAD_CALL_MACRO)
+TEST_CASE(THREAD_CALL_macro)
 {
     const auto ranInThread = THREAD_CALL(
     {
@@ -209,41 +209,4 @@ TEST_CASE(DebugMutex_torture)
     }
 
     BOOST_CHECK(counter == TORTURE_COUNT);
-}
-
-TEST_CASE(RecursiveDebugMutex_recursive_lock)
-{
-    RecursiveDebugMutex mutex;
-
-    BOOST_CHECK(mutex.lockCount() == 0);
-    BOOST_CHECK(! mutex.locked());
-    BOOST_CHECK(! mutex.haveLock());
-
-    BOOST_CHECK_NO_THROW(mutex.lock());
-    BOOST_CHECK(mutex.lockCount() == 1);
-    BOOST_CHECK(mutex.locked());
-    BOOST_CHECK(mutex.haveLock());
-    NEW_THREAD(
-    {
-        BOOST_CHECK(mutex.locked());
-        BOOST_CHECK(! mutex.haveLock());
-    });
-
-    BOOST_CHECK_NO_THROW(mutex.lock());
-    BOOST_CHECK(mutex.lockCount() == 2);
-
-    BOOST_CHECK_NO_THROW(mutex.unlock());
-    BOOST_CHECK(mutex.lockCount() == 1);
-    BOOST_CHECK(mutex.locked());
-    BOOST_CHECK(mutex.haveLock());
-
-    BOOST_CHECK_NO_THROW(mutex.unlock());
-    BOOST_CHECK(mutex.lockCount() == 0);
-    BOOST_CHECK(! mutex.locked());
-    BOOST_CHECK(! mutex.haveLock());
-
-    BOOST_CHECK_THROW(mutex.unlock(), MutexUnlockError);
-    BOOST_CHECK(mutex.lockCount() == 0);
-    BOOST_CHECK(! mutex.locked());
-    BOOST_CHECK(! mutex.haveLock());
 }

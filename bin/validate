@@ -1,13 +1,16 @@
 #!/bin/bash
 
 set -e
+set -o pipefail
 set -x
-set -u
 
 PROJECT_ROOT="$(realpath $(dirname $0)/..)"
 VALIDATE_ROOT="$1"
-COMPILERS="clang++-16 clang++-17 g++"
-TARGETS="validate clypsalot-gui"
+BUILD_TYPES="Debug RelWithDebInfo"
+COMPILERS="clang++-17 clang++-16 g++"
+TARGETS="validate memcheck clypsalot-gui"
+
+set -u
 
 function error() {
     echo "$*" >&2
@@ -15,25 +18,33 @@ function error() {
 }
 
 if [ "${VALIDATE_ROOT}" == "" ]; then
-    error "Must specify a directory"
+    VALIDATE_ROOT="$(mktemp -d /tmp/clypsalot-validate.XXXXXX)"
 fi
 
 if ! [ -d "${VALIDATE_ROOT}" ]; then
-    error "${VALIDATE_ROOT} is not a directory"
+    mkdir "${VALIDATE_ROOT}"
 fi
 
+renice -n 10 -p $$
+
 for COMPILER in ${COMPILERS}; do
-    VALIDATE_DIR="${VALIDATE_ROOT}/${COMPILER}"
+    for BUILD_TYPE in ${BUILD_TYPES}; do
+        VALIDATE_DIR="${VALIDATE_ROOT}/${COMPILER}-${BUILD_TYPE}"
 
-    if [ -e "${VALIDATE_DIR}" ]; then
-        error "${VALIDATE_DIR} is in the way"
-    fi
+        if [ -e "${VALIDATE_DIR}" ]; then
+            error "${VALIDATE_DIR} is in the way"
+        fi
 
-    mkdir "${VALIDATE_DIR}"
-    cd "${VALIDATE_DIR}"
+        mkdir "${VALIDATE_DIR}"
+        cd "${VALIDATE_DIR}"
 
-    (
-        CXX="${COMPILER}" cmake -GNinja "${PROJECT_ROOT}"
-        nice cmake --build . -t ${TARGETS}
-    )
+        (
+            CXX="${COMPILER}" cmake -GNinja -DCMAKE_BUILD_TYPE="${BUILD_TYPE}" "${PROJECT_ROOT}"
+            cmake --build . -t ${TARGETS}
+        ) 2>&1 | tee validate.log
+
+        rm -rf "${VALIDATE_DIR}"
+    done
 done
+
+rmdir "${VALIDATE_ROOT}"

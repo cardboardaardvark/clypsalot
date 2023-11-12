@@ -24,12 +24,7 @@ namespace Clypsalot
     static Mutex threadQueueSingletonMutex;
     thread_local bool ThreadQueue::m_insideQueueFlag = false;
 
-    DebugMutex::DebugMutex() :
-        m_recurseOk(false)
-    { }
-
-    DebugMutex::DebugMutex(const bool recurseOk) :
-        m_recurseOk(recurseOk)
+    DebugMutex::DebugMutex()
     { }
 
     DebugMutex::~DebugMutex()
@@ -67,12 +62,6 @@ namespace Clypsalot
         return _haveLock();
     }
 
-    size_t DebugMutex::lockCount() const
-    {
-        std::scoped_lock lock(m_metaMutex);
-        return m_lockCounter;
-    }
-
     /**
      * @brief Lock the mutex.
      *
@@ -83,17 +72,15 @@ namespace Clypsalot
     {
         std::unique_lock lock(m_metaMutex);
 
-        if (_haveLock() && ! m_recurseOk) throw MutexLockError("Recursive lock attempt on mutex");
+        if (_haveLock()) throw MutexLockError("Recursive lock attempt on mutex");
 
         lock.unlock();
         m_guardedMutex.lock();
         lock.lock();
 
-        if (! m_recurseOk) assert(! _locked());
+        assert(! _locked());
 
         m_lockedBy = std::this_thread::get_id();
-
-        if (m_recurseOk) m_lockCounter++;
     }
 
     /**
@@ -110,18 +97,7 @@ namespace Clypsalot
 
         assert(_locked());
         m_guardedMutex.unlock();
-
-        if (m_recurseOk)
-        {
-            if (--m_lockCounter == 0)
-            {
-                m_lockedBy = std::thread::id();
-            }
-        }
-        else
-        {
-            m_lockedBy = std::thread::id();
-        }
+        m_lockedBy = std::thread::id();
     }
 
     /**
@@ -149,10 +125,6 @@ namespace Clypsalot
         m_lockedBy = std::this_thread::get_id();
         return lockResult;
     }
-
-    Lockable::Lockable(const bool recurseOk) :
-        m_mutex(recurseOk)
-    { }
 
 #ifndef NDEBUG
     bool Lockable::haveLock() const
@@ -189,14 +161,6 @@ namespace Clypsalot
     {
         return tryLock();
     }
-
-    RecursiveDebugMutex::RecursiveDebugMutex() :
-        DebugMutex(true)
-    { }
-
-    RecursiveLockable::RecursiveLockable() :
-        Lockable(true)
-    { }
 
     bool SharedDebugMutex::_locked() const
     {

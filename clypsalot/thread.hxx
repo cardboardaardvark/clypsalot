@@ -41,17 +41,12 @@ namespace Clypsalot
     {
         friend class Lockable;
 
-        std::recursive_mutex m_guardedMutex;
+        std::mutex m_guardedMutex;
         mutable std::mutex m_metaMutex;
         std::thread::id m_lockedBy;
-        size_t m_lockCounter = 0;
-        const bool m_recurseOk;
 
         bool _haveLock() const;
         bool _locked() const;
-
-        protected:
-        DebugMutex(const bool recurseOk);
 
         public:
         DebugMutex();
@@ -85,8 +80,6 @@ namespace Clypsalot
         /// @brief The mutex used for the object.
         mutable Mutex m_mutex;
 
-        Lockable(const bool recurseOk);
-
         public:
         Lockable() = default;
         Lockable(const Lockable&) = delete;
@@ -101,24 +94,6 @@ namespace Clypsalot
         bool tryLock() const;
         bool try_lock() const;
         /// @endcond
-    };
-
-    class RecursiveDebugMutex : public DebugMutex
-    {
-        public:
-        RecursiveDebugMutex();
-    };
-
-#ifdef NDEBUG
-    using RecursiveMutex = std::recursive_mutex;
-#else
-    using RecursiveMutex = RecursiveDebugMutex;
-#endif
-
-    class RecursiveLockable : public Lockable
-    {
-        public:
-        RecursiveLockable();
     };
 
     /// @brief The SharedMutex version of DebugMutex.

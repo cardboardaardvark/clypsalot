@@ -39,7 +39,7 @@ namespace Clypsalot
         }
     };
 
-    class Network : RecursiveLockable
+    class Network : Lockable
     {
         std::shared_ptr<MessageProcessor> m_messages = std::make_shared<MessageProcessor>();
         std::condition_variable_any m_condVar;

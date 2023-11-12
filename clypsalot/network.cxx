@@ -105,7 +105,7 @@ namespace Clypsalot
         if (shouldStop())
         {
             LOGGER(debug, "Network needs to stop");
-            stop();
+            _stop();
         }
     }
 
