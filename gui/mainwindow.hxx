@@ -33,7 +33,7 @@ class MainWindow : public QMainWindow
     std::initializer_list<QPushButton*> selectionDependentButtons();
 
     protected:
-    virtual void closeEvent(QCloseEvent* event) override;
+    void closeEvent(QCloseEvent* event) override;
 
     Q_SIGNALS:
     void statusUpdate(const QString& message);

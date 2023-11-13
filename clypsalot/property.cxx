@@ -28,29 +28,17 @@ namespace Clypsalot
     {
         switch (in_config.type)
         {
-            case PropertyType::boolean: m_container.boolean = false; break;
-            case PropertyType::file: m_container.file = new std::filesystem::path; break;
-            case PropertyType::integer: m_container.integer = 0; break;
-            case PropertyType::real: m_container.real = 0.; break;
-            case PropertyType::size: m_container.size = 0; break;
-            case PropertyType::string: m_container.string = new std::string; break;
+            case PropertyType::boolean: m_container = false; break;
+            case PropertyType::file: m_container = std::filesystem::path(); break;
+            case PropertyType::integer: m_container = static_cast<IntegerType>(0); break;
+            case PropertyType::real: m_container = static_cast<RealType>(0); break;
+            case PropertyType::size: m_container = static_cast<SizeType>(0); break;
+            case PropertyType::string: m_container = std::string(); break;
         }
 
         if (in_config.initial.type() != typeid(nullptr))
         {
             set(in_config.initial);
-        }
-    }
-
-    Property::~Property()
-    {
-        if (m_type == PropertyType::string)
-        {
-            delete m_container.string;
-        }
-        else if (m_type == PropertyType::file)
-        {
-            delete m_container.file;
         }
     }
 
@@ -88,18 +76,25 @@ namespace Clypsalot
         return m_hasValue;
     }
 
+    Property::Variant Property::variant() const noexcept
+    {
+        assert(m_parent.haveLock());
+
+        return m_container;
+    }
+
     void Property::set(const std::any& in_value)
     {
         assert(m_parent.haveLock());
 
         switch (m_type)
         {
-            case PropertyType::boolean: m_container.boolean = anyToBool(in_value); break;
-            case PropertyType::file: *m_container.file = anyToPath(in_value); break;
-            case PropertyType::integer: m_container.integer = anyToInt(in_value); break;
-            case PropertyType::real: m_container.real = anyToFloat(in_value); break;
-            case PropertyType::size: m_container.size = anyToSize(in_value); break;
-            case PropertyType::string: *m_container.string = anyToString(in_value); break;
+            case PropertyType::boolean: m_container = anyToBool(in_value); break;
+            case PropertyType::file: m_container = anyToPath(in_value); break;
+            case PropertyType::integer: m_container = anyToInt(in_value); break;
+            case PropertyType::real: m_container = anyToFloat(in_value); break;
+            case PropertyType::size: m_container = anyToSize(in_value); break;
+            case PropertyType::string: m_container = anyToString(in_value); break;
         }
 
         m_hasValue = true;
@@ -123,18 +118,7 @@ namespace Clypsalot
     std::string Property::valueToString() const
     {
         assert(m_parent.haveLock());
-
-        switch (m_type)
-        {
-            case PropertyType::boolean: return makeString(booleanValue());
-            case PropertyType::file: return fileValue();
-            case PropertyType::integer: return makeString(integerValue());
-            case PropertyType::real: return makeString(realValue());
-            case PropertyType::size: return makeString(sizeValue());
-            case PropertyType::string: return stringValue();
-        }
-
-        FATAL_ERROR(makeString("Unhandled PropertyType value: ", m_type));
+        return toString(m_container);
     }
 
     Property::BooleanType& Property::booleanRef()
@@ -143,7 +127,7 @@ namespace Clypsalot
 
         enforceType(PropertyType::boolean);
 
-        return m_container.boolean;
+        return std::get<BooleanType>(m_container);
     }
 
     Property::BooleanType Property::booleanValue() const
@@ -153,7 +137,7 @@ namespace Clypsalot
         enforceType(PropertyType::boolean);
         enforceDefined();
 
-        return m_container.boolean;
+        return std::get<BooleanType>(m_container);
     }
 
     void Property::booleanValue(const BooleanType in_value)
@@ -172,7 +156,7 @@ namespace Clypsalot
 
         enforceType(PropertyType::file);
 
-        return *m_container.file;
+        return std::get<FileType>(m_container);
     }
 
     Property::FileType Property::fileValue() const
@@ -182,7 +166,7 @@ namespace Clypsalot
         enforceType(PropertyType::file);
         enforceDefined();
 
-        return *m_container.file;
+        return std::get<FileType>(m_container);
     }
 
     void Property::fileValue(const FileType& in_value)
@@ -201,7 +185,7 @@ namespace Clypsalot
 
         enforceType(PropertyType::integer);
 
-        return m_container.integer;
+        return std::get<IntegerType>(m_container);
     }
 
     Property::IntegerType Property::integerValue() const
@@ -211,7 +195,7 @@ namespace Clypsalot
         enforceType(PropertyType::integer);
         enforceDefined();
 
-        return m_container.integer;
+        return std::get<IntegerType>(m_container);
     }
 
     void Property::integerValue(const IntegerType in_value)
@@ -230,7 +214,7 @@ namespace Clypsalot
 
         enforceType(PropertyType::real);
 
-        return m_container.real;
+        return std::get<RealType>(m_container);
     }
 
     Property::RealType Property::realValue() const
@@ -240,7 +224,7 @@ namespace Clypsalot
         enforceType(PropertyType::real);
         enforceDefined();
 
-        return m_container.real;
+        return std::get<RealType>(m_container);
     }
 
     void Property::realValue(const RealType in_value)
@@ -259,7 +243,7 @@ namespace Clypsalot
 
         enforceType(PropertyType::size);
 
-        return m_container.size;
+        return std::get<SizeType>(m_container);
     }
 
     Property::SizeType Property::sizeValue() const
@@ -269,7 +253,7 @@ namespace Clypsalot
         enforceType(PropertyType::size);
         enforceDefined();
 
-        return m_container.size;
+        return std::get<SizeType>(m_container);
     }
 
     void Property::sizeValue(const SizeType in_value)
@@ -288,7 +272,7 @@ namespace Clypsalot
 
         enforceType(PropertyType::string);
 
-        return *m_container.string;
+        return std::get<StringType>(m_container);
     }
 
     Property::StringType Property::stringValue() const
@@ -298,7 +282,7 @@ namespace Clypsalot
         enforceType(PropertyType::string);
         enforceDefined();
 
-        return *m_container.string;
+        return std::get<StringType>(m_container);
     }
 
     void Property::stringValue(const StringType& in_value)
@@ -331,10 +315,20 @@ namespace Clypsalot
     void Property::anyValue(const std::any& in_value)
     {
         assert(m_parent.haveLock());
-
         enforcePublicMutable();
-
         set(in_value);
+    }
+
+    std::string toString(const Property::Variant& in_variant) noexcept
+    {
+        if (std::holds_alternative<Property::BooleanType>(in_variant)) return makeString(std::get<Property::BooleanType>(in_variant));
+        if (std::holds_alternative<Property::FileType>(in_variant)) return std::get<Property::FileType>(in_variant);
+        if (std::holds_alternative<Property::IntegerType>(in_variant)) return std::to_string(std::get<Property::IntegerType>(in_variant));
+        if (std::holds_alternative<Property::RealType>(in_variant)) return std::to_string(std::get<Property::RealType>(in_variant));
+        if (std::holds_alternative<Property::SizeType>(in_variant)) return std::to_string(std::get<Property::SizeType>(in_variant));
+        if (std::holds_alternative<Property::StringType>(in_variant)) return std::get<Property::StringType>(in_variant);
+
+        FATAL_ERROR("Unhandled Property::Variant alternative");
     }
 
     std::string toString(const PropertyType in_type) noexcept

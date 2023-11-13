@@ -356,8 +356,9 @@ namespace Clypsalot
 
         for (const auto& [name, value] : config)
         {
-            OBJECT_LOGGER(debug, "Setting value for property: ", name);
-            property(name).anyValue(value);
+            OBJECT_LOGGER(trace, "Setting value for property: ", name);
+            property(name).set(value);
+            OBJECT_LOGGER(debug, "Configured property ", name, "=", property(name).valueToString());
         }
     }
 

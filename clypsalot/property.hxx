@@ -16,6 +16,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <variant>
 
 #include <clypsalot/forward.hxx>
 
@@ -44,6 +45,16 @@ namespace Clypsalot
         using StringType = std::string;
         using Flags = uint_fast8_t;
 
+        using Variant = std::variant
+        <
+            BooleanType,
+            FileType,
+            IntegerType,
+            RealType,
+            SizeType,
+            StringType
+        >;
+
         enum FlagValues : Flags
         {
             NoFlags = 0,
@@ -52,19 +63,8 @@ namespace Clypsalot
             PublicMutable = 1 << 2,
         };
 
-        private:
-        union Container
-        {
-            BooleanType boolean;
-            FileType* file;
-            IntegerType integer;
-            RealType real;
-            SizeType size;
-            StringType* string;
-        };
-
         const Lockable& m_parent;
-        Container m_container;
+        Variant m_container;
         const std::string m_name;
         const PropertyType m_type;
         const Flags m_flags;
@@ -86,13 +86,13 @@ namespace Clypsalot
         public:
         Property(const Lockable& in_parent, const PropertyConfig& in_config);
         Property(const Property&) = delete;
-        ~Property();
         void operator=(const Property&) = delete;
         const std::string& name() const noexcept;
         PropertyType type() const noexcept;
         Flags flags() const noexcept;
         bool hasFlag(const Flags in_flags) const noexcept;
         bool defined() const noexcept;
+        Variant variant() const noexcept;
         std::string valueToString() const;
         BooleanType booleanValue() const;
         void booleanValue(const BooleanType in_value);
@@ -118,6 +118,9 @@ namespace Clypsalot
         const std::any initial;
     };
 
+    // If Property::Variant is used with std::ostream << overloading then it collides
+    // with types that can be set in it.
+    std::string toString(const Property::Variant& in_variant) noexcept;
     std::string toString(const PropertyType in_type) noexcept;
     std::ostream& operator<<(std::ostream& in_os, const PropertyType& in_rhs) noexcept;
 }

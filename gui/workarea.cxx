@@ -12,6 +12,7 @@
 
 #include <QApplication>
 #include <QGraphicsSceneDragDropEvent>
+#include <QTimer>
 
 #include <clypsalot/object.hxx>
 
@@ -20,6 +21,10 @@
 #include "mainwindow.hxx"
 #include "object.hxx"
 #include "workarea.hxx"
+
+// Bill Gates> Fifty Hertz of updates is more than anyone will ever need.
+// Even so this is probably a good thing to make configurable in the future.
+const int objectUpdateInterval = 1. / 50 * 1000;
 
 WorkAreaWidget::WorkAreaWidget(QGraphicsItem* parent) :
     QGraphicsWidget(parent)
@@ -275,6 +280,42 @@ WorkArea::WorkArea(QWidget *parent) :
     m_scene(new WorkAreaScene(this))
 {
     setScene(m_scene);
+
+    LOGGER(debug, "Object update interval ", objectUpdateInterval, "ms");
+
+    objectUpdateTimer = new QTimer(this);
+    objectUpdateTimer->setSingleShot(true);
+    objectUpdateTimer->setInterval(objectUpdateInterval);
+    connect(objectUpdateTimer, SIGNAL(timeout()), this, SLOT(updateObjects()));
+}
+
+void WorkArea::scheduleUpdateObjects()
+{
+    LOGGER(debug, "WorkArea::scheduleUpdateObjects()");
+
+    if (! m_updateObjectsScheduled)
+    {
+        LOGGER(debug, "update objects: starting timer");
+        objectUpdateTimer->start();
+        m_updateObjectsScheduled = true;
+    }
+}
+
+void WorkArea::updateObjects()
+{
+    m_updateObjectsScheduled = false;
+
+    auto objects = m_scene->objects();
+    LOGGER(debug, "Checking objects for updates needed: ", objects.size());
+
+    for (auto object : m_scene->objects())
+    {
+        if (object->needsUpdate())
+        {
+            LOGGER(debug, "Found an object that needs to be updated");
+            object->updateObject();
+        }
+    }
 }
 
 void WorkArea::startConnectionDrag()
@@ -355,4 +396,22 @@ void WorkArea::removeSelected()
             delete item;
         }
     }
+}
+
+/**
+ * @brief Find a graphics item with a specific WorkAreaItemType at a point in the scene
+ * @param in_type The WorkAreaItemType to match against
+ * @param in_scenePos QPointF in scene coordinates
+ * @return Pointer to QGraphicsItem if one exists at the position otherwise nullptr;
+ */
+QGraphicsItem* workAreaItemAt(const WorkAreaItemType in_type, const QPointF& in_scenePos) noexcept
+{
+    // QGraphicsScene::itemAt() only returns the top most item. Using the list of all
+    // items at a given position is more reliable.
+    for (auto item : MainWindow::instance()->workArea()->scene()->items(in_scenePos))
+    {
+        if (static_cast<WorkAreaItemType>(item->type()) == in_type) return item;
+    }
+
+    return nullptr;
 }

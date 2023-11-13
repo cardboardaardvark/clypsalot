@@ -31,16 +31,16 @@ class ObjectPort : public WorkAreaWidget
     WorkAreaLabelWidget* m_nameLabel = nullptr;
 
     protected:
+    Object* const m_parentObject;
     QList<PortConnection*> m_connections;
 
-    public:
-    Object* const m_parentObject;
+    ObjectPort(Object* const in_parentObject, const Clypsalot::Port& in_port, QGraphicsItem* in_parent = nullptr);
 
-    ObjectPort(Object* const in_parentObject, const QString& in_name, QGraphicsItem* in_parent = nullptr);
+    public:
     ~ObjectPort();
     QString name();
     const QList<PortConnection*>& connections() const;
-    virtual QPointF connectPos() = 0;
+    virtual QPointF connectPos() const = 0;
     Object* parentObject() const;
     void addConnection(PortConnection* in_connection);
     void removeConnection(PortConnection* in_connection);
@@ -51,15 +51,20 @@ class ObjectInput : public ObjectPort
 {
     Q_OBJECT
 
+    Clypsalot::InputPort& m_inputPort;
+
     public:
-    ObjectInput(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
+    ObjectInput(Object* const parentObject, Clypsalot::InputPort& in_port, QGraphicsItem* in_parent = nullptr);
     int type() const override;
-    QPointF connectPos() override;
+    Clypsalot::InputPort& port() const;
+    QPointF connectPos() const override;
 };
 
 class ObjectOutput : public ObjectPort
 {
     Q_OBJECT
+
+    Clypsalot::OutputPort& m_outputPort;
 
     protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* event) override;
@@ -67,9 +72,10 @@ class ObjectOutput : public ObjectPort
     void mouseReleaseEvent(QGraphicsSceneMouseEvent* event) override;
 
     public:
-    ObjectOutput(Object* const parentObject, const QString& name, QGraphicsItem* parent = nullptr);
-    QPointF connectPos() override;
-    void createConnection(ObjectInput* to);
+    ObjectOutput(Object* const parentObject, Clypsalot::OutputPort& in_port, QGraphicsItem* in_parent = nullptr);
+    Clypsalot::OutputPort& port() const;
+    QPointF connectPos() const override;
+    void createConnection(ObjectInput* in_to);
 };
 
 class PortConnection : public WorkAreaWidget
@@ -110,12 +116,6 @@ class ObjectInfo : public WorkAreaWidget
     explicit ObjectInfo(QGraphicsItem* parent = nullptr);
 };
 
-struct ObjectUpdate
-{
-    Clypsalot::ObjectState m_state;
-    std::vector<std::pair<std::string, std::string>> m_propertyValues;
-};
-
 class Object : public WorkAreaWidget
 {
     Q_OBJECT
@@ -127,10 +127,13 @@ class Object : public WorkAreaWidget
     QList<ObjectOutput*> m_outputs;
     QList<ObjectInput*> m_inputs;
     std::vector<std::shared_ptr<Clypsalot::Subscription>> m_subscriptions;
-    std::atomic_bool m_checkObjectSignalNeeded = ATOMIC_VAR_INIT(true);
+    std::atomic_bool m_needsUpdate = false;
 
     QList<Object*> objectCollisions() const noexcept;
     void ensureOnTop() noexcept;
+
+    Q_SIGNALS:
+    void checkObject();
 
     protected:
     void mousePressEvent(QGraphicsSceneMouseEvent* in_event) noexcept override;
@@ -140,16 +143,15 @@ class Object : public WorkAreaWidget
     QVariant itemChange(const GraphicsItemChange change, const QVariant& value) override;
     void updatePortConnections();
 
-    Q_SIGNALS:
-    void checkObject();
-
     protected Q_SLOTS:
     void updateSelected(const bool in_selected);
-    void updateObject();
+    void scheduleUpdateObject();
 
     public:
     Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent = nullptr);
     ~Object();
+    bool needsUpdate() const;
+    void updateObject();
     int type() const override;
     const Clypsalot::SharedObject& object();
     Clypsalot::ObjectState state() const;

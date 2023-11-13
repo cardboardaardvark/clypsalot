@@ -17,6 +17,7 @@
 
 #include "test/module/module.hxx"
 
+#include "logger.hxx"
 #include "logwindow.hxx"
 #include "mainwindow.hxx"
 #include "util.hxx"

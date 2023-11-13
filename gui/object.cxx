@@ -10,11 +10,10 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-#include <memory>
-
 #include <QApplication>
 #include <QGraphicsSceneMouseEvent>
 #include <QMenu>
+#include <QWindow>
 
 #include <clypsalot/macros.hxx>
 #include <clypsalot/object.hxx>
@@ -38,7 +37,7 @@ static const QColor objectFaultedColor(Qt::red);
 static const QColor objectPausedColor(Qt::blue);
 static const QColor objectStoppedColor(Qt::yellow);
 
-ObjectPort::ObjectPort(Object* const in_parentObject, const QString& in_name, QGraphicsItem* in_parent) :
+ObjectPort::ObjectPort(Object* const in_parentObject, const Clypsalot::Port& in_port, QGraphicsItem* in_parent) :
     WorkAreaWidget(in_parent),
     m_parentObject(in_parentObject)
 {
@@ -47,7 +46,7 @@ ObjectPort::ObjectPort(Object* const in_parentObject, const QString& in_name, QG
     auto layout = new QGraphicsLinearLayout(Qt::Horizontal);
     setLayout(layout);
 
-    m_nameLabel = new WorkAreaLabelWidget(in_name);
+    m_nameLabel = new WorkAreaLabelWidget(QString::fromStdString(in_port.name()));
     m_nameLabel->setFlag(ItemStacksBehindParent);
     layout->addItem(m_nameLabel);
 }
@@ -102,25 +101,30 @@ void ObjectPort::updateConnections()
     for (auto connection : m_connections) connection->update();
 }
 
-ObjectInput::ObjectInput(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
-    ObjectPort(parentObject, name, parent)
-{
-    setAcceptDrops(true);
-}
+ObjectInput::ObjectInput(Object* const in_parentObject, Clypsalot::InputPort& in_port, QGraphicsItem* in_parent) :
+    ObjectPort(in_parentObject, in_port, in_parent),
+    m_inputPort(in_port)
+{ }
 
 int ObjectInput::type() const
 {
     return static_cast<int>(WorkAreaItemType::inputPort);
 }
 
-QPointF ObjectInput::connectPos()
+Clypsalot::InputPort& ObjectInput::port() const
+{
+    return m_inputPort;
+}
+
+QPointF ObjectInput::connectPos() const
 {
     auto mySize = size();
     return {0, mySize.height() / 2};
 }
 
-ObjectOutput::ObjectOutput(Object* const parentObject, const QString& name, QGraphicsItem* parent) :
-    ObjectPort(parentObject, name, parent)
+ObjectOutput::ObjectOutput(Object* const in_parentObject, Clypsalot::OutputPort& in_port, QGraphicsItem* in_parent) :
+    ObjectPort(in_parentObject, in_port, in_parent),
+    m_outputPort(in_port)
 { }
 
 void ObjectOutput::mousePressEvent(QGraphicsSceneMouseEvent *)
@@ -133,34 +137,40 @@ void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
     auto workArea = MainWindow::instance()->workArea();
     auto lineStart = mapToScene(connectPos());
     auto cursorPos = mapToScene(event->pos());
-    auto item = workArea->m_scene->itemAt(cursorPos, QTransform());
+    auto item = workAreaItemAt(WorkAreaItemType::inputPort, cursorPos);
 
-    if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
+    if (item == nullptr)
     {
-        auto input = dynamic_cast<ObjectInput*>(item);
-        assert(input != nullptr);
-        auto color = PortConnection::colorForStates(m_parentObject->state(), input->parentObject()->state());
-        workArea->updateConnectionDrag(lineStart, input->mapToScene(input->connectPos()), color, false);
+        workArea->updateConnectionDrag(lineStart, cursorPos, m_parentObject->borderColor(), true);
+        return;
     }
-    else workArea->updateConnectionDrag(lineStart, cursorPos, m_parentObject->borderColor(), true);
+
+    auto input = dynamic_cast<ObjectInput*>(item);
+    assert(input != nullptr);
+    auto color = PortConnection::colorForStates(m_parentObject->state(), input->parentObject()->state());
+    workArea->updateConnectionDrag(lineStart, input->mapToScene(input->connectPos()), color, false);
 }
 
 void ObjectOutput::mouseReleaseEvent(QGraphicsSceneMouseEvent* event)
 {
     MainWindow::instance()->workArea()->resetConnectionDrag();
 
-    auto lastPos = event->lastPos();
-    auto item = MainWindow::instance()->workArea()->m_scene->itemAt(mapToScene(lastPos), QTransform());
+    auto scenePos = event->scenePos();
+    auto item = workAreaItemAt(WorkAreaItemType::inputPort, scenePos);
 
-    if (item && static_cast<WorkAreaItemType>(item->type()) == WorkAreaItemType::inputPort)
-    {
-        auto input = dynamic_cast<ObjectInput*>(item);
-        assert(input != nullptr);
-        createConnection(input);
-    }
+    if (item == nullptr) return;
+
+    auto input = dynamic_cast<ObjectInput*>(item);
+    assert(input != nullptr);
+    createConnection(input);
 }
 
-QPointF ObjectOutput::connectPos()
+Clypsalot::OutputPort& ObjectOutput::port() const
+{
+    return m_outputPort;
+}
+
+QPointF ObjectOutput::connectPos() const
 {
     auto mySize = size();
     return {mySize.width(), mySize.height() / 2};
@@ -287,38 +297,22 @@ void PortConnection::update()
 
 void PortConnection::link()
 {
-    auto fromObject = m_from->parentObject()->object();
-    auto fromName = m_from->name().toStdString();
-    auto toObject = m_to->parentObject()->object();
-    auto toName = m_to->name().toStdString();
-
     THREAD_CALL
     ({
-         std::scoped_lock fromLock(*fromObject);
-         std::scoped_lock toLock(*toObject);
-         auto& fromPort = fromObject->output(fromName);
-         auto& toPort = toObject->input(toName);
-
-         Clypsalot::linkPorts(fromPort, toPort);
-     });
+         std::scoped_lock fromLock(*m_from->parentObject()->object());
+         std::scoped_lock toLock(*m_to->parentObject()->object());
+         Clypsalot::linkPorts(m_from->port(), m_to->port());
+    });
 }
 
 void PortConnection::unlink()
 {
-    auto fromObject = m_from->parentObject()->object();
-    auto fromName = m_from->name().toStdString();
-    auto toObject = m_to->parentObject()->object();
-    auto toName = m_to->name().toStdString();
-
     THREAD_CALL
     ({
-         std::lock_guard fromLock(*fromObject);
-         std::lock_guard toLock(*toObject);
-         auto& fromPort = fromObject->output(fromName);
-         auto& toPort = toObject->input(toName);
-
-         Clypsalot::unlinkPorts(fromPort, toPort);
-     });
+         std::scoped_lock fromLock(*m_from->parentObject()->object());
+         std::scoped_lock toLock(*m_to->parentObject()->object());
+         Clypsalot::unlinkPorts(m_from->port(), m_to->port());
+    });
 }
 
 ObjectInfo::ObjectInfo(QGraphicsItem* parent) :
@@ -336,6 +330,12 @@ ObjectInfo::ObjectInfo(QGraphicsItem* parent) :
     layout->addItem(m_state);
     layout->setAlignment(m_state, Qt::AlignHCenter);
 }
+
+struct ObjectUpdate
+{
+    Clypsalot::ObjectState state;
+    std::vector<std::pair<std::string, Clypsalot::Property::Variant>> propertyValues;
+};
 
 Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
     WorkAreaWidget(parent),
@@ -364,7 +364,7 @@ Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
 
     mainLayout->addItem(outputsLayout);
 
-    connect(this, SIGNAL(checkObject()), this, SLOT(updateObject()), Qt::QueuedConnection);
+    connect(this, SIGNAL(checkObject()), this, SLOT(scheduleUpdateObject()), Qt::QueuedConnection);
     connect(this, SIGNAL(selectedChanged(bool)), this, SLOT(updateSelected(bool)));
 
     initObject(inputsLayout, outputsLayout, propertiesLayout);
@@ -413,8 +413,7 @@ void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayo
 
     for (auto port : m_object->inputs())
     {
-        auto inputName = QString::fromStdString(port->name());
-        auto input = new ObjectInput(this, inputName);
+        auto input = new ObjectInput(this, *port);
         m_inputs.push_back(input);
         input->setBorderWidth(portBorderWidth);
         inputsLayout->addItem(input);
@@ -422,8 +421,7 @@ void Object::initObject(QGraphicsLinearLayout* inputsLayout, QGraphicsLinearLayo
 
     for (auto port : m_object->outputs())
     {
-        auto outputName = QString::fromStdString(port->name());
-        auto output = new ObjectOutput(this, outputName);
+        auto output = new ObjectOutput(this, *port);
         m_outputs.push_back(output);
         output->setBorderWidth(portBorderWidth);
         outputsLayout->addItem(output);
@@ -514,16 +512,6 @@ void Object::contextMenuEvent(QGraphicsSceneContextMenuEvent* in_event)
     ungrabMouse();
 }
 
-// This is called from inside the Clypsalot thread queue not the UI thread.
-void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent&)
-{
-    if (m_checkObjectSignalNeeded)
-    {
-        m_checkObjectSignalNeeded = false;
-        Q_EMIT checkObject();
-    }
-}
-
 QVariant Object::itemChange(const GraphicsItemChange in_change, const QVariant& in_value)
 {
     if (in_change == ItemPositionChange && scene())
@@ -548,49 +536,71 @@ QVariant Object::itemChange(const GraphicsItemChange in_change, const QVariant& 
     return WorkAreaWidget::itemChange(in_change, in_value);
 }
 
+// This is called from inside the Clypsalot thread queue not the UI thread.
+void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent&)
+{
+    if (! m_needsUpdate)
+    {
+        m_needsUpdate = true;
+        Q_EMIT checkObject();
+    }
+}
+
+void Object::scheduleUpdateObject()
+{
+    LOGGER(debug, "Requesting update from work area");
+    MainWindow::instance()->workArea()->scheduleUpdateObjects();
+}
+
 void Object::updateObject()
 {
-    m_checkObjectSignalNeeded = true;
+    m_needsUpdate = false;
 
-    auto update = THREAD_CALL
+    ObjectUpdate update;
+
+    THREAD_CALL
     ({
-         auto retval = std::make_unique<ObjectUpdate>();
          std::lock_guard lock(*m_object);
          const auto& properties = m_object->properties();
-         auto& propertyValues = retval->m_propertyValues;
+         auto& propertyValues = update.propertyValues;
 
-         retval->m_state = m_object->state();
-         propertyValues.reserve(properties.size());
+         // It would be better to allocate memory outside of the thread queue but
+         // getting the number of properties requires the object be locked.
+         propertyValues.reserve(m_object->properties().size());
+         update.state = m_object->state();
 
          for (const auto& [name, property] : properties)
          {
-             if (property.defined()) propertyValues.emplace_back(name, property.valueToString());
+             if (property.defined()) propertyValues.emplace_back(name, property.variant());
          }
-
-         return retval;
     });
 
-    m_state = update->m_state;
-    m_info->m_state->setText(QString::fromStdString(Clypsalot::toString(update->m_state)));
+    m_state = update.state;
+    m_info->m_state->setText(QString::fromStdString(Clypsalot::toString(update.state)));
 
-    if (update->m_state == Clypsalot::ObjectState::paused) setBorderColor(objectPausedColor);
-    else if (Clypsalot::objectIsActive(update->m_state)) setBorderColor(objectActiveColor);
-    else if (update->m_state == Clypsalot::ObjectState::stopped) setBorderColor(objectStoppedColor);
-    else if (update->m_state == Clypsalot::ObjectState::faulted) setBorderColor(objectFaultedColor);
+    if (update.state == Clypsalot::ObjectState::paused) setBorderColor(objectPausedColor);
+    else if (Clypsalot::objectIsActive(update.state)) setBorderColor(objectActiveColor);
+    else if (update.state == Clypsalot::ObjectState::stopped) setBorderColor(objectStoppedColor);
+    else if (update.state == Clypsalot::ObjectState::faulted) setBorderColor(objectFaultedColor);
     else
     {
-        LOGGER(warn, "Unexpected object state: ", update->m_state);
+        LOGGER(warn, "Unexpected object state: ", update.state);
         setBorderColor(palette().color(QPalette::Active, QPalette::WindowText));
     }
 
-    for (const auto& [name, value] : update->m_propertyValues)
+    for (const auto& [name, value] : update.propertyValues)
     {
         auto qName = QString::fromStdString(name);
         if (! m_propertyValues.contains(qName)) continue;
-        m_propertyValues[qName]->setText(QString::fromStdString(value));
+        m_propertyValues[qName]->setText(QString::fromStdString(Clypsalot::toString(value)));
     }
 
     updatePortConnections();
+}
+
+bool Object::needsUpdate() const
+{
+    return m_needsUpdate;
 }
 
 void Object::updatePortConnections()

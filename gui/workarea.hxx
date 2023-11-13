@@ -102,6 +102,8 @@ class WorkArea : public QGraphicsView
     Q_OBJECT
 
     std::unique_ptr<WorkAreaLineWidget> m_connectionDragLine;
+    bool m_updateObjectsScheduled = false;
+    QTimer* objectUpdateTimer = nullptr;
 
     public:
     WorkAreaScene* const m_scene;
@@ -112,9 +114,13 @@ class WorkArea : public QGraphicsView
     void resetConnectionDrag();
 
     public Q_SLOTS:
+    void scheduleUpdateObjects();
+    void updateObjects();
     void selectAll();
     void startObjects();
     void pauseObjects();
     void stopObjects();
     void removeSelected();
 };
+
+QGraphicsItem* workAreaItemAt(const WorkAreaItemType in_type, const QPointF& in_scenePos) noexcept;

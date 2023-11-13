@@ -42,6 +42,7 @@ namespace Clypsalot
     enum class ObjectState : uint_fast8_t;
     struct ObjectStateChangedEvent;
     class OutputPort;
+    class Port;
     class PortLink;
     class PortType;
     struct PortTypeDescriptor;
