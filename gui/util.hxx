@@ -14,15 +14,91 @@
 
 #include <QGraphicsLayout>
 #include <QGraphicsProxyWidget>
+#include <QObject>
 #include <QSpacerItem>
 #include <QString>
 #include <QWidget>
 
 #include <clypsalot/forward.hxx>
+#include <clypsalot/thread.hxx>
 #include <clypsalot/util.hxx>
 
+class QueueSignals : public QObject
+{
+    Q_OBJECT
+
+    public:
+    explicit QueueSignals(QObject* in_parent = nullptr);
+
+    Q_SIGNALS:
+    void ready();
+};
+
+template <typename T>
+class ThreadSafeQueue : public QueueSignals
+{
+    public:
+    using QueueType = std::list<T>;
+
+    mutable Clypsalot::Mutex m_mutex;
+    QueueType m_queue;
+    bool m_needToSignal = true;
+
+    void signalIfNeeded()
+    {
+        assert(m_mutex.haveLock());
+
+        if (m_needToSignal)
+        {
+            Q_EMIT ready();
+            m_needToSignal = false;
+        }
+    }
+
+    public:
+    explicit ThreadSafeQueue(QObject* parent = nullptr) :
+        QueueSignals(parent)
+    { }
+
+    ThreadSafeQueue(const ThreadSafeQueue&) = delete;
+    void operator=(const ThreadSafeQueue&) = delete;
+
+    std::size_t push(const T& in_value)
+    {
+        std::scoped_lock lock(m_mutex);
+        m_queue.push_back(in_value);
+        signalIfNeeded();
+    }
+
+    std::size_t push(T&& in_value)
+    {
+        std::scoped_lock lock(m_mutex);
+        m_queue.push_back(in_value);
+        signalIfNeeded();
+        return m_queue.size();
+    }
+
+    template <typename... Args>
+    std::size_t emplace(Args&&... in_args)
+    {
+        std::scoped_lock lock(m_mutex);
+        m_queue.emplace_back(in_args...);
+        signalIfNeeded();
+        return m_queue.size();
+    }
+
+    QueueType drain()
+    {
+        std::scoped_lock lock(m_mutex);
+        QueueType retval;
+        retval = std::move(m_queue);
+        m_needToSignal = true;
+        return retval;
+    }
+};
+
 QSpacerItem* makeSpacer();
-void openWindow(QWidget* window);
+void openWindow(QWidget* in_window);
 void initObject(
     const Clypsalot::SharedObject& in_object,
     const std::vector<std::pair<QString, QString>>& in_outputs,

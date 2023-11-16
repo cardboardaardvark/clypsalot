@@ -10,6 +10,8 @@
  * <https://www.gnu.org/licenses/>.
  */
 
+#include <thread>
+
 #include <QCloseEvent>
 #include <QString>
 
@@ -78,12 +80,12 @@ std::initializer_list<QPushButton*> MainWindow::selectionDependentButtons()
 
 void MainWindow::loadModules()
 {
-    Clypsalot::threadQueuePost([this]
+    std::thread([this]
     {
         statusMessage("Loading modules");
         Clypsalot::importModule(Clypsalot::testModuleDescriptor());
         statusMessage("Modules loaded");
-    });
+    }).detach();
 }
 
 void MainWindow::showLogWindow()

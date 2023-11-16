@@ -18,6 +18,8 @@
 
 #include <clypsalot/forward.hxx>
 
+#include "util.hxx"
+
 static const int catalogTopLevelItemType = QTreeWidgetItem::UserType;
 static const int catalogObjectItemType = catalogTopLevelItemType + 1;
 static const QString catalogEntryMimeFormat("application/x-clypsalot-catalog-entry");
@@ -54,6 +56,7 @@ class Catalog : public QTreeWidget
     Q_OBJECT
 
     std::vector<std::shared_ptr<Clypsalot::Subscription>> m_subscriptions;
+    ThreadSafeQueue<const Clypsalot::ObjectDescriptor*> m_objectDescriptorQueue;
 
     protected:
     QTreeWidgetItem* m_catalogObjects = nullptr;
@@ -63,11 +66,8 @@ class Catalog : public QTreeWidget
     void handleEvent(const Clypsalot::ObjectCatalogEntryAddedEvent& event);
     void startDrag(Qt::DropActions);
 
-    Q_SIGNALS:
-    void catalogEntryAdded(const Clypsalot::ObjectDescriptor* descriptor);
-
     protected Q_SLOTS:
-    void addObject(const Clypsalot::ObjectDescriptor* descriptor);
+    void addObjects();
 
     public:
     Catalog(QWidget* parent);

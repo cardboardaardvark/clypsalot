@@ -41,8 +41,6 @@ ObjectPort::ObjectPort(Object* const in_parentObject, const Clypsalot::Port& in_
     WorkAreaWidget(in_parent),
     m_parentObject(in_parentObject)
 {
-    setFlag(ItemSendsGeometryChanges);
-
     auto layout = new QGraphicsLinearLayout(Qt::Horizontal);
     setLayout(layout);
 
@@ -53,9 +51,16 @@ ObjectPort::ObjectPort(Object* const in_parentObject, const Clypsalot::Port& in_
 
 ObjectPort::~ObjectPort()
 {
-    if (m_connections.size() > 0)
+    LOGGER(debug, "ObjectPort::~ObjectPort()");
+
+    // Need a copy because connectionDestroyed() will wind up invalidating iterators when it is
+    // invoked because of the delete.
+    auto copy = connections();
+
+    for (auto connection : copy)
     {
-        FATAL_ERROR("ObjectPort had connections during destruction");
+        LOGGER(debug, "Deleting connection");
+        delete connection;
     }
 }
 
@@ -69,14 +74,21 @@ QString ObjectPort::name()
     return m_nameLabel->text();
 }
 
-const QList<PortConnection*>& ObjectPort::connections() const
+const QList<QPointer<PortConnection>>& ObjectPort::connections() const
 {
     return m_connections;
 }
 
 void ObjectPort::addConnection(PortConnection* in_connection)
 {
+    connect(in_connection, SIGNAL(destroyed(QObject*)), this, SLOT(connectionDestroyed(QObject*)));
     m_connections.append(in_connection);
+}
+
+void ObjectPort::connectionDestroyed(QObject* in_connection)
+{
+    LOGGER(debug, "ObjectPort::connectionDestroyed(QObject*)");
+    removeConnection(static_cast<PortConnection*>(in_connection));
 }
 
 void ObjectPort::removeConnection(PortConnection* in_connection)
@@ -98,7 +110,11 @@ void ObjectPort::removeConnection(PortConnection* in_connection)
 
 void ObjectPort::updateConnections()
 {
-    for (auto connection : m_connections) connection->update();
+    for (auto connection : m_connections)
+    {
+        if (! connection) continue;
+        connection->update();
+    }
 }
 
 ObjectInput::ObjectInput(Object* const in_parentObject, Clypsalot::InputPort& in_port, QGraphicsItem* in_parent) :
@@ -147,7 +163,7 @@ void ObjectOutput::mouseMoveEvent(QGraphicsSceneMouseEvent *event)
 
     auto input = dynamic_cast<ObjectInput*>(item);
     assert(input != nullptr);
-    auto color = PortConnection::colorForStates(m_parentObject->state(), input->parentObject()->state());
+    auto color = colorForStates({m_parentObject->state(), input->parentObject()->state()});
     workArea->updateConnectionDrag(lineStart, input->mapToScene(input->connectPos()), color, false);
 }
 
@@ -194,29 +210,6 @@ void ObjectOutput::createConnection(ObjectInput* to)
     to->addConnection(connection);
 }
 
-QColor PortConnection::colorForStates(const Clypsalot::ObjectState in_fromState, const Clypsalot::ObjectState in_toState)
-{
-    if (in_fromState == Clypsalot::ObjectState::faulted || in_toState == Clypsalot::ObjectState::faulted)
-    {
-        return objectFaultedColor;
-    }
-    else if (in_fromState == Clypsalot::ObjectState::stopped || in_toState == Clypsalot::ObjectState::stopped)
-    {
-        return objectStoppedColor;
-    }
-    else if (in_fromState == Clypsalot::ObjectState::paused || in_toState == Clypsalot::ObjectState::paused)
-    {
-        return objectPausedColor;
-    }
-    else if (Clypsalot::objectIsActive(in_fromState) && Clypsalot::objectIsActive(in_toState))
-    {
-       return objectActiveColor;
-    }
-
-    LOGGER(warn, "Unexpected object states; from=", in_fromState, " to=", in_toState);
-    return MainWindow::instance()->workArea()->scene()->palette().color(QPalette::Active, QPalette::WindowText);
-}
-
 PortConnection::PortConnection(ObjectOutput* const from, ObjectInput* const to, QGraphicsObject* parent) :
     WorkAreaWidget(parent),
     m_from(from),
@@ -238,9 +231,7 @@ PortConnection::~PortConnection() noexcept
     // unlink() could throw an exception but if that happens there is no obvious means
     // of recovery.
     unlink();
-    m_from->removeConnection(this);
-    m_to->removeConnection(this);
-    MainWindow::instance()->workArea()->m_scene->removeItem(this);
+    MainWindow::instance()->workArea()->scene()->removeItem(this);
 }
 
 QPainterPath PortConnection::shape() const
@@ -292,7 +283,7 @@ void PortConnection::update()
     auto fromState = m_from->parentObject()->state();
     auto toState = m_to->parentObject()->state();
 
-    m_line->setColor(colorForStates(fromState, toState));
+    m_line->setColor(colorForStates({fromState, toState}));
 }
 
 void PortConnection::link()
@@ -330,12 +321,6 @@ ObjectInfo::ObjectInfo(QGraphicsItem* parent) :
     layout->addItem(m_state);
     layout->setAlignment(m_state, Qt::AlignHCenter);
 }
-
-struct ObjectUpdate
-{
-    Clypsalot::ObjectState state;
-    std::vector<std::pair<std::string, Clypsalot::Property::Variant>> propertyValues;
-};
 
 Object::Object(const Clypsalot::SharedObject& object, QGraphicsItem* parent) :
     WorkAreaWidget(parent),
@@ -376,31 +361,17 @@ Object::~Object()
 {
     LOGGER(debug, "In Object::~Object()");
 
-    for (auto output : m_outputs)
+    // The ports have to be removed before m_object is destroyed otherwise the Clypsalot::SharedObject
+    // deleter will unlink the ports then when the destructor for ObjectPort runs it'll try to
+    // unlink the ports again.
+    for (auto port : m_outputs)
     {
-        LOGGER(debug, "Cleaning up output: ", output->name());
-
-        // Need a copy because the iterator will be invalidated
-        auto connections = output->connections();
-
-        for (auto connection : connections)
-        {
-            LOGGER(debug, "Removing connection to ", connection->to()->name());
-            delete connection;
-        }
+        delete port;
     }
 
-    for (auto input : m_inputs)
+    for (auto port : m_inputs)
     {
-        LOGGER(debug, "Cleaning up input: ", input->name());
-
-        auto connections = input->connections();
-
-        for (auto connection : connections)
-        {
-            LOGGER(debug, "Removing connection from ", connection->from()->name());
-            delete connection;
-        }
+        delete port;
     }
 }
 
@@ -514,7 +485,7 @@ void Object::contextMenuEvent(QGraphicsSceneContextMenuEvent* in_event)
 
 QVariant Object::itemChange(const GraphicsItemChange in_change, const QVariant& in_value)
 {
-    if (in_change == ItemPositionChange && scene())
+    if (in_change == ItemPositionChange)
     {
         auto position = in_value.toPointF();
         auto sceneRect = scene()->sceneRect();
@@ -527,7 +498,7 @@ QVariant Object::itemChange(const GraphicsItemChange in_change, const QVariant& 
             return position;
         }
     }
-    else if (in_change == ItemPositionHasChanged && scene())
+    else if (in_change == ItemPositionHasChanged)
     {
         ensureOnTop();
         updatePortConnections();
@@ -539,9 +510,9 @@ QVariant Object::itemChange(const GraphicsItemChange in_change, const QVariant& 
 // This is called from inside the Clypsalot thread queue not the UI thread.
 void Object::handleEvent(const Clypsalot::ObjectStateChangedEvent&)
 {
-    if (! m_needsUpdate)
+    if (! m_needsUpdate.load(std::memory_order_relaxed))
     {
-        m_needsUpdate = true;
+        m_needsUpdate.store(true, std::memory_order_relaxed);
         Q_EMIT checkObject();
     }
 }
@@ -554,20 +525,20 @@ void Object::scheduleUpdateObject()
 
 void Object::updateObject()
 {
-    m_needsUpdate = false;
+    struct ObjectUpdate updateData;
 
-    ObjectUpdate update;
+    m_needsUpdate.store(false, std::memory_order_relaxed);
 
     THREAD_CALL
     ({
          std::lock_guard lock(*m_object);
          const auto& properties = m_object->properties();
-         auto& propertyValues = update.propertyValues;
+         auto& propertyValues = updateData.propertyValues;
 
          // It would be better to allocate memory outside of the thread queue but
          // getting the number of properties requires the object be locked.
-         propertyValues.reserve(m_object->properties().size());
-         update.state = m_object->state();
+         propertyValues.reserve(properties.size());
+         updateData.state = m_object->state();
 
          for (const auto& [name, property] : properties)
          {
@@ -575,32 +546,20 @@ void Object::updateObject()
          }
     });
 
-    m_state = update.state;
-    m_info->m_state->setText(QString::fromStdString(Clypsalot::toString(update.state)));
-
-    if (update.state == Clypsalot::ObjectState::paused) setBorderColor(objectPausedColor);
-    else if (Clypsalot::objectIsActive(update.state)) setBorderColor(objectActiveColor);
-    else if (update.state == Clypsalot::ObjectState::stopped) setBorderColor(objectStoppedColor);
-    else if (update.state == Clypsalot::ObjectState::faulted) setBorderColor(objectFaultedColor);
-    else
-    {
-        LOGGER(warn, "Unexpected object state: ", update.state);
-        setBorderColor(palette().color(QPalette::Active, QPalette::WindowText));
-    }
-
-    for (const auto& [name, value] : update.propertyValues)
+    for (const auto& [name, value] : updateData.propertyValues)
     {
         auto qName = QString::fromStdString(name);
         if (! m_propertyValues.contains(qName)) continue;
         m_propertyValues[qName]->setText(QString::fromStdString(Clypsalot::toString(value)));
     }
 
+    setState(updateData.state);
     updatePortConnections();
 }
 
 bool Object::needsUpdate() const
 {
-    return m_needsUpdate;
+    return m_needsUpdate.load(std::memory_order_relaxed);
 }
 
 void Object::updatePortConnections()
@@ -611,6 +570,13 @@ void Object::updatePortConnections()
         if (port == nullptr) continue;
         port->updateConnections();
     }
+}
+
+void Object::setState(const Clypsalot::ObjectState in_state) noexcept
+{
+    m_state = in_state;
+    m_info->m_state->setText(QString::fromStdString(Clypsalot::toString(in_state)));
+    setBorderColor(colorForStates({in_state}));
 }
 
 void Object::updateSelected(const bool in_selected)
@@ -649,4 +615,35 @@ void Object::stop()
         std::scoped_lock lock(*m_object);
         Clypsalot::stopObject(m_object);
     });
+}
+
+static bool _hasState(const std::initializer_list<Clypsalot::ObjectState>& in_states, const Clypsalot::ObjectState in_state)
+{
+    for (auto state : in_states)
+    {
+        if (state == in_state) return true;
+    }
+
+    return false;
+}
+
+QColor colorForStates(const std::initializer_list<Clypsalot::ObjectState>& in_states) noexcept
+{
+    if (_hasState(in_states, Clypsalot::ObjectState::faulted)) return objectFaultedColor;
+    if (_hasState(in_states, Clypsalot::ObjectState::stopped)) return objectStoppedColor;
+    if (_hasState(in_states, Clypsalot::ObjectState::paused)) return objectPausedColor;
+
+    for (auto state : in_states)
+    {
+        if (Clypsalot::objectIsActive(state)) return objectActiveColor;
+    }
+
+    LOGGER(warn, "Unexpected object states");
+
+    for (auto state : in_states)
+    {
+        LOGGER(debug, "Unhandled state: ", state);
+    }
+
+    return MainWindow::instance()->workArea()->scene()->palette().color(QPalette::Active, QPalette::WindowText);
 }

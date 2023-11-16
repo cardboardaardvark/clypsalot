@@ -11,6 +11,7 @@
  */
 
 #include <cassert>
+#include <iostream>
 
 #include <QScrollBar>
 
@@ -25,33 +26,25 @@
 
 LogWindowDestination::LogWindowDestination(const Clypsalot::LogSeverity severity) :
     Clypsalot::LogDestination(severity)
-{ }
+{
+    connect(&m_eventQueue, SIGNAL(ready()), this, SLOT(queueReady()));
+}
 
 // This method could be called by any thread
 void LogWindowDestination::handleLogEvent(const Clypsalot::LogEvent& event) noexcept
 {
     assert(m_mutex.haveSharedLock());
-
-    std::scoped_lock lock(m_queueMutex);
-
-    m_eventQueue.push_back(event);
-
-    if (m_needToSignal)
-    {
-        Q_EMIT checkMessages();
-        m_needToSignal = false;
-    }
+    m_eventQueue.emplace(event);
 }
 
-std::list<Clypsalot::LogEvent> LogWindowDestination::getEvents()
+void LogWindowDestination::queueReady()
 {
-    std::list<Clypsalot::LogEvent> retval;
-    std::scoped_lock lock(m_queueMutex);
+    Q_EMIT checkMessages();
+}
 
-    retval = std::move(m_eventQueue);
-    m_needToSignal = true;
-
-    return retval;
+ThreadSafeQueue<Clypsalot::LogEvent>::QueueType LogWindowDestination::getEvents()
+{
+    return m_eventQueue.drain();
 }
 
 LogWindow* LogWindow::instance()

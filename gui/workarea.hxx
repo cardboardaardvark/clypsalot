@@ -68,6 +68,8 @@ class WorkAreaLabelWidget : public WorkAreaWidget
 
 class WorkAreaLineWidget : public WorkAreaWidget
 {
+    Q_OBJECT
+
     QGraphicsLineItem* m_line = nullptr;
 
     public:

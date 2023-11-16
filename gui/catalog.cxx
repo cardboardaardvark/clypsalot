@@ -16,6 +16,7 @@
 #include <clypsalot/module.hxx>
 
 #include "catalog.hxx"
+#include "logger.hxx"
 
 using namespace std::placeholders;
 
@@ -46,12 +47,12 @@ Catalog::Catalog(QWidget* parent) :
     m_catalogPlugins = makeTopLevelItem("Plugins");
 
     m_subscriptions.push_back(Clypsalot::objectCatalog().subscribe<Clypsalot::ObjectCatalogEntryAddedEvent>(std::bind(&Catalog::handleEvent, this, _1)));
-    connect(this, SIGNAL(catalogEntryAdded(const Clypsalot::ObjectDescriptor*)), this, SLOT(addObject(const Clypsalot::ObjectDescriptor*)));
+    connect(&m_objectDescriptorQueue, SIGNAL(ready()), this, SLOT(addObjects()));
 }
 
 void Catalog::handleEvent(const Clypsalot::ObjectCatalogEntryAddedEvent& event)
 {
-    Q_EMIT catalogEntryAdded(&event.entry);
+    m_objectDescriptorQueue.push(&event.entry);
 }
 
 void Catalog::startDrag(Qt::DropActions)
@@ -74,9 +75,12 @@ QTreeWidgetItem* Catalog::makeTopLevelItem(const QString& title)
     return item;
 }
 
-void Catalog::addObject(const Clypsalot::ObjectDescriptor* descriptor)
+void Catalog::addObjects()
 {
     if (m_catalogObjects->isHidden()) m_catalogObjects->setHidden(false);
 
-    new CatalogObjectItem(m_catalogObjects, *descriptor);
+    for (auto descriptor : m_objectDescriptorQueue.drain())
+    {
+        new CatalogObjectItem(m_catalogObjects, *descriptor);
+    }
 }

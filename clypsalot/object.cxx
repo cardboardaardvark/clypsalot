@@ -15,8 +15,6 @@
 /// @file
 namespace Clypsalot
 {
-    static std::atomic<size_t> nextObjectId = ATOMIC_VAR_INIT(1);
-
     static const EventTypeList objectEvents
     {
         &typeid(ObjectFaultedEvent),
@@ -60,7 +58,7 @@ namespace Clypsalot
     }
 
     Object::Object(const std::string& kind) :
-        m_id(nextObjectId++),
+        m_id(nextObjectId()),
         m_kind(kind)
     {
         OBJECT_LOGGER(debug, "Object is being constructed: ", kind);
@@ -782,6 +780,14 @@ namespace Clypsalot
 
         m_inputPorts.push_back(input);
         return *input;
+    }
+
+    std::size_t nextObjectId() noexcept
+    {
+        static std::atomic<size_t> nextObjectId = 0;
+
+        auto oldValue = nextObjectId.fetch_add(1, std::memory_order_relaxed);
+        return oldValue + 1;
     }
 
     bool objectIsShutdown(const ObjectState in_state) noexcept

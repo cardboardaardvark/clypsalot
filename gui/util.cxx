@@ -17,16 +17,20 @@
 
 #include "util.hxx"
 
+QueueSignals::QueueSignals(QObject* in_parent) :
+    QObject(in_parent)
+{ }
+
 QSpacerItem* makeSpacer()
 {
     return new QSpacerItem(0, 0, QSizePolicy::Expanding, QSizePolicy::Expanding);
 }
 
-void openWindow(QWidget* window)
+void openWindow(QWidget* in_window)
 {
-    window->show();
-    window->setWindowState(window->windowState() & ~Qt::WindowMinimized);
-    window->raise();
+    in_window->show();
+    in_window->setWindowState(in_window->windowState() & ~Qt::WindowMinimized);
+    in_window->raise();
 }
 
 void initObject(

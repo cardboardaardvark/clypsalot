@@ -12,11 +12,11 @@
 
 #pragma once
 
-#include <list>
-
 #include <QFrame>
 
 #include <clypsalot/logging.hxx>
+
+#include "util.hxx"
 
 namespace Ui {
     class LogWindow;
@@ -27,18 +27,20 @@ class LogWindowDestination : public QObject, public Clypsalot::LogDestination
     Q_OBJECT
 
     protected:
-    bool m_needToSignal = true;
     Clypsalot::Mutex m_queueMutex;
-    std::list<Clypsalot::LogEvent> m_eventQueue;
+    ThreadSafeQueue<Clypsalot::LogEvent> m_eventQueue;
 
     void handleLogEvent(const Clypsalot::LogEvent& event) noexcept override;
+
+    protected Q_SLOTS:
+    void queueReady();
 
     Q_SIGNALS:
     void checkMessages();
 
     public:
     LogWindowDestination(const Clypsalot::LogSeverity severity);
-    std::list<Clypsalot::LogEvent> getEvents();
+    ThreadSafeQueue<Clypsalot::LogEvent>::QueueType getEvents();
 };
 
 class LogWindow : public QFrame

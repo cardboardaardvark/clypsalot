@@ -248,6 +248,7 @@ namespace Clypsalot
         return std::shared_ptr<T>(new T(args...), _destroyObject<T>);
     }
 
+    std::size_t nextObjectId() noexcept;
     bool objectIsShutdown(const ObjectState in_state) noexcept;
     bool objectIsBusy(const ObjectState in_state) noexcept;
     bool objectIsPreparing(const ObjectState in_state) noexcept;
