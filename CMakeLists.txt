@@ -8,6 +8,8 @@ endif()
 
 project(clypsalot VERSION 0.0.0 LANGUAGES CXX)
 
+option(CLYPSALOT_BUILD_BOOST off)
+
 include(ProcessorCount)
 
 ProcessorCount(NUM_CPU)
@@ -38,7 +40,11 @@ set(CLYPSALOT_CMAKE_DIR ${CMAKE_SOURCE_DIR}/cmake)
 set(CLYPSALOT_LIB_TARGET clypsalot)
 set(CLYPSALOT_TEST_LIB_TARGET clypsalot-test)
 
-add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror -Wfatal-errors)
+if(MSVC)
+    add_compile_options(/Wall /WX)
+else()
+    add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror -Wfatal-errors)
+endif()
 
 if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     # Valgrind does not understand the debug info from LLVM version 17 until version
@@ -47,7 +53,7 @@ if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInf
 endif()
 
 # The Clypsalot headers are included as system headers so #include <clypsalot/someheader.hxx> works
-include_directories(SYSTEM ${CMAKE_SOURCE_DIR})
+include_directories(SYSTEM ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
 
 # The trailing directory seperator is intentionally included as it is used by the logging system
 # to remove the path to the project directory from the filename output.

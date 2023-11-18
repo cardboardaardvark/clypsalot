@@ -21,5 +21,9 @@ target_link_libraries(
     ${CLYPSALOT_LIB_TARGET}
 
     PUBLIC Threads::Threads
-    PRIVATE Boost::boost
+    PRIVATE ${Boost_LIBRARIES}
 )
+
+if (CLYPSALOT_BUILD_BOOST)
+    add_dependencies(clypsalot boost)
+endif()
