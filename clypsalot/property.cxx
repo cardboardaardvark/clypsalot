@@ -22,6 +22,7 @@ namespace Clypsalot
 {
     Property::Property(const Lockable& in_parent, const PropertyConfig& in_config) :
         m_parent(in_parent),
+        m_container(),
         m_name(in_config.name),
         m_type(in_config.type),
         m_flags(in_config.flags)
@@ -127,7 +128,7 @@ namespace Clypsalot
         switch (m_type)
         {
             case PropertyType::boolean: return makeString(booleanValue());
-            case PropertyType::file: return fileValue();
+            case PropertyType::file: return fileValue().string();
             case PropertyType::integer: return makeString(integerValue());
             case PropertyType::real: return makeString(realValue());
             case PropertyType::size: return makeString(sizeValue());

@@ -1,2 +1,10 @@
+# Build process from README.md
 build/
+
+# Qt Creator
 CMakeLists.txt.user
+
+# Visual Studio
+out/
+.vs/
+CMakeSettings.json

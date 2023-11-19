@@ -41,30 +41,30 @@ set(CLYPSALOT_LIB_TARGET clypsalot)
 set(CLYPSALOT_TEST_LIB_TARGET clypsalot-test)
 
 if(MSVC)
-    add_compile_options(/Wall /WX)
+    # add_compile_options(/Wall /WX)
 else()
     add_compile_options(-Wall -Wextra -Wpedantic -Wshadow -Werror -Wfatal-errors)
-endif()
 
-if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
+    if(CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "RelWithDebInfo")
     # Valgrind does not understand the debug info from LLVM version 17 until version
     # 3.20 which is not available in Debian yet (not even in backports as I write this).
-    add_compile_options(-gdwarf-4)
+        add_compile_options(-gdwarf-4)
+    endif()
 endif()
+
+include(${CLYPSALOT_CMAKE_DIR}/dependencies.cmake)
 
 # The Clypsalot headers are included as system headers so #include <clypsalot/someheader.hxx> works
 include_directories(SYSTEM ${CMAKE_SOURCE_DIR} ${Boost_INCLUDE_DIRS})
+link_directories(${Boost_LIBRARY_DIRS})
 
 # The trailing directory seperator is intentionally included as it is used by the logging system
 # to remove the path to the project directory from the filename output.
 add_compile_definitions(CLYPSALOT_VERSION="${CMAKE_PROJECT_VERSION}" CLYPSALOT_PROJECT_DIR="${CMAKE_SOURCE_DIR}/")
 
-include(${CLYPSALOT_CMAKE_DIR}/dependencies.cmake)
-
 add_subdirectory(${CLYPSALOT_LIBRARY_SOURCE_DIRECTORY})
 
 if(Boost_UNIT_TEST_FRAMEWORK_FOUND)
-    include(${CLYPSALOT_CMAKE_DIR}/testing.cmake)
     add_subdirectory(test)
 endif()
 

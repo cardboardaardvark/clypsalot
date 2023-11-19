@@ -76,7 +76,7 @@ namespace Clypsalot
     struct HandlerSubscriber : SubscriberBase
     {
         using EventType = T;
-        using Handler = std::function<void (const EventType&)>;
+        using Handler = typename std::function<void (const EventType&)>;
 
         const Handler m_handler;
 
@@ -157,7 +157,7 @@ namespace Clypsalot
          * @throws RuntimeError Event type is not registered with sender
          */
         template <std::derived_from<Event> T>
-        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const HandlerSubscriber<T>::Handler& handler)
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const typename HandlerSubscriber<T>::Handler& handler)
         {
             auto subscription = std::make_shared<Subscription>(shared_from_this());
             auto subscriber = new HandlerSubscriber<T>(subscription, handler);
@@ -203,7 +203,7 @@ namespace Clypsalot
 
         public:
         template <std::derived_from<Event> T>
-        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const HandlerSubscriber<T>::Handler& handler)
+        [[nodiscard]] std::shared_ptr<Subscription> subscribe(const typename HandlerSubscriber<T>::Handler& handler)
         {
             // No lock on the object mutex is needed because the EventSender is thread safe
             // and the events shared_ptr never changes after construction.

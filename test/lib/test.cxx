@@ -10,8 +10,6 @@
  * <https://www.gnu.org/licenses/>.
  */
 
-#include <boost/test/unit_test.hpp>
-
 #include <clypsalot/error.hxx>
 #include <clypsalot/logger.hxx>
 #include <clypsalot/macros.hxx>
